@@ -96,7 +96,7 @@ export default function EditableText({ initialValue, onSave, className, multilin
                     onBlur={handleSave}
                     onKeyDown={handleKeyDown}
                     className={className}
-                    style={{ ...style, width: '100%', minHeight: '60px' }}
+                    style={{ ...style, width: '100%', minHeight: '60px', color: 'white', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
                     disabled={isSaving}
                 />
             );
@@ -109,7 +109,7 @@ export default function EditableText({ initialValue, onSave, className, multilin
                 onBlur={handleSave}
                 onKeyDown={handleKeyDown}
                 className={className}
-                style={{ ...style, width: '100%' }}
+                style={{ ...style, width: '100%', color: 'white', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
                 disabled={isSaving}
             />
         );

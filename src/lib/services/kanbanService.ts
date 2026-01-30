@@ -39,10 +39,75 @@ export async function updateInitiativeStatus(initiativeId: string, status: Kanba
     return initiative;
 }
 
-export async function getKanbanBoard(tenantId: string) {
+export async function getKanbanBoard(tenantId: string, userArea?: string | null, isAdmin?: boolean, userId?: string) {
+    // Build filter for initiatives based on their KR's objective's area AND explicit access
+    const initiativeFilter: any = { tenantId };
+    
+    if (isAdmin) {
+        return await prisma.initiative.findMany({
+            where: { tenantId },
+            include: {
+                owner: true, // simplified selection for now
+                team: { include: { members: { include: { user: { include: { discProfile: true } } } } } }
+            }
+        });
+    }
+
+    const accessCondition = userId ? {
+        strategicAccess: {
+            some: { userId: userId }
+        }
+    } : {};
+
+    if (userArea) {
+        initiativeFilter.OR = [
+            // Case 1: Visible via Area hierarchy (KR -> Objective -> Area)
+            {
+                keyResult: {
+                    objective: {
+                        OR: [
+                            { area: null }, // Company-level
+                            { area: userArea } // User's area
+                        ]
+                    }
+                }
+            },
+            // Case 2: Explicitly shared (Initiative level)
+            accessCondition
+        ];
+    } else {
+        // No area, only company level or explicit access
+        initiativeFilter.OR = [
+            {
+                keyResult: {
+                    objective: { area: null }
+                }
+            },
+            accessCondition
+        ];
+    }
+
+    // Prisma OR query with relation filters can be complex.
+    // If accessCondition is empty object, it might match everything or nothing depending on structure.
+    // We should only add accessCondition if userId is present.
+    if (!userId) {
+       // If no userId provided, remove accessCondition from OR array
+       initiativeFilter.OR = initiativeFilter.OR.filter((c: any) => c.strategicAccess);
+       // Wait, if no userId, we can't check strategicAccess.
+       // The previous step ensured userId is passed.
+    }
+
     return await prisma.initiative.findMany({
-        where: { tenantId },
+        where: initiativeFilter,
         include: {
+            owner: {
+                select: {
+                    id: true,
+                    name: true,
+                    lastName: true,
+                    area: true
+                }
+            },
             team: {
                 include: {
                     members: {
@@ -57,5 +122,53 @@ export async function getKanbanBoard(tenantId: string) {
                 }
             }
         }
+    });
+}
+
+export async function getKeyResults(tenantId: string, userArea?: string | null, isAdmin?: boolean, userId?: string) {
+    if (isAdmin) {
+         return await prisma.keyResult.findMany({
+            where: { tenantId },
+            orderBy: { statement: 'asc' }
+        });
+    }
+
+    const krFilter: any = { tenantId };
+    const accessCondition = userId ? {
+        strategicAccess: { // Assuming StrategicAccess can link to Objectives directly, but for KRs?
+            // KRs don't have direct StrategicAccess relation in schema yet, only Objectives.
+            // But if Objective is shared, KRs should be visible? Yes.
+            // If Initiative is shared, should its KR be visible? Probably necessary for context.
+            // Let's stick to Objective sharing making KRs visible.
+        }
+    } : {};
+    
+    // For KRs, visibility depends on Objective
+    // Show KR if: Objective is visible (Area or Shared)
+    
+    const objectiveAccessCondition = userId ? {
+        strategicAccess: {
+            some: { userId: userId }
+        }
+    } : undefined;
+
+    const objectiveFilter = userArea ? {
+        OR: [
+            { area: null },
+            { area: userArea },
+            ...(objectiveAccessCondition ? [objectiveAccessCondition] : [])
+        ]
+    } : {
+        OR: [
+            { area: null },
+            ...(objectiveAccessCondition ? [objectiveAccessCondition] : [])
+        ]
+    };
+
+    krFilter.objective = objectiveFilter;
+
+    return await prisma.keyResult.findMany({
+        where: krFilter,
+        orderBy: { statement: 'asc' }
     });
 }

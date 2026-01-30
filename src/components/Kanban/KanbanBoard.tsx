@@ -30,6 +30,12 @@ const COLUMNS: Column[] = [
 export default function KanbanBoard({ tasks: initialTasks, initiativeId }: { tasks: KanbanTask[], initiativeId: string }) {
     // We use optimistic updates for immediate UI feedback
     const [tasks, setTasks] = useState(initialTasks);
+
+    // Sync with server updates
+    useEffect(() => {
+        setTasks(initialTasks);
+    }, [initialTasks]);
+
     const { dict } = useLanguage();
 
     const getTasksByStatus = (status: string) => {

@@ -43,18 +43,15 @@ next-env.d.ts
 /src/generated/prisma
 
 # Testing and diagnostic files
-test_*.js
-check_*.js
-debug_*.js
-verify_*.js
-apply_*.js
-inspect_*.js
-restore_*.js
-fix_*.js
-error_trigger.js
-full_rag_test.js
-*.txt
-*.bak
-.archive/
-cleanup.ps1
-CLEANUP_GUIDE.md
+# Testing and diagnostic files
+# Only ignore specifically temporary/loud files, but keep useful scripts
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Ignore one-off manual migration scripts if not needed
+direct_sql_create.js
+
+# Keep scripts/ folder tracked
+!scripts/

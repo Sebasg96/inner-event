@@ -11,6 +11,8 @@
 import NavBar from '@/components/NavBar';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import Link from 'next/link';
+import InitiativeCreator from '@/components/Strategy/InitiativeCreator';
+import React, { useState } from 'react';
 
 
 // Define types
@@ -27,30 +29,97 @@ interface Team {
     members: TeamMember[];
 }
 
+interface KR {
+    id: string;
+    statement: string;
+}
+
 interface Initiative {
     id: string;
     title: string;
     status: string;
     horizon: string;
     progress?: number;
+    owner?: {
+        name: string;
+        lastName: string | null;
+        area: string | null;
+    } | null;
     team?: Team | null;
 }
 
 type Props = {
     initiatives: Initiative[];
+    krs: KR[];
 };
 
-export default function KanbanPageClient({ initiatives }: Props) {
+export default function KanbanPageClient({ initiatives, krs }: Props) {
     const { dict } = useLanguage();
+    const [showCreator, setShowCreator] = useState(false);
 
     return (
         <main style={{ padding: '2rem', height: '100vh', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <h1 style={{ fontWeight: 700, fontSize: '1.5rem', background: 'linear-gradient(to right, #fff, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                    {dict.nav.kanban}
-                </h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                    <h1 style={{ margin: 0, fontWeight: 700, fontSize: '1.5rem', background: 'linear-gradient(to right, #fff, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                        {dict.nav.kanban}
+                    </h1>
+                    <button
+                        onClick={() => setShowCreator(!showCreator)}
+                        style={{
+                            background: showCreator ? '#ef4444' : 'var(--primary)',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '20px',
+                            padding: '0.4rem 1.2rem',
+                            fontSize: '0.85rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            transition: 'all 0.2s',
+                            boxShadow: showCreator ? 'none' : '0 4px 12px var(--primary-glow)'
+                        }}
+                    >
+                        {showCreator ? 'Cancelar' : '➕ Nueva Iniciativa'}
+                    </button>
+                </div>
                 <NavBar />
             </div>
+
+            {showCreator && (
+                <div style={{ maxWidth: '600px', margin: '0 auto 2rem auto', width: '100%' }}>
+                    <InitiativeCreator
+                        krs={krs}
+                        onSuccess={() => setShowCreator(false)}
+                    />
+                </div>
+            )}
+
+            {initiatives.length === 0 && !showCreator && (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'hsl(var(--text-muted))', textAlign: 'center', padding: '4rem 2rem' }}>
+                    <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>🚀</div>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: 600, color: 'white', marginBottom: '1rem' }}>No hay iniciativas activas</h2>
+                    <p style={{ maxWidth: '400px', lineHeight: 1.6, marginBottom: '2rem' }}>
+                        Las iniciativas son los contenedores de tareas para alcanzar tus OKRs. Empieza registrando tu primera iniciativa clave.
+                    </p>
+                    <button
+                        onClick={() => setShowCreator(true)}
+                        style={{
+                            padding: '0.75rem 2rem',
+                            borderRadius: '12px',
+                            background: 'white',
+                            color: '#000',
+                            border: 'none',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Registrar Primera Iniciativa
+                    </button>
+                </div>
+            )}
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
                 {initiatives.map((initiative) => (
@@ -74,6 +143,19 @@ export default function KanbanPageClient({ initiatives }: Props) {
                             <p style={{ fontSize: '0.9rem', color: 'hsl(var(--text-muted))', marginBottom: '1rem' }}>
                                 {initiative.horizon}
                             </p>
+
+                            {/* Owner Assignment */}
+                            {initiative.owner && (
+                                <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>👤 Responsable:</span>
+                                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--primary)' }}>
+                                        {initiative.owner.name} {initiative.owner.lastName || ''}
+                                    </span>
+                                    {initiative.owner.area && (
+                                        <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>({initiative.owner.area})</span>
+                                    )}
+                                </div>
+                            )}
 
                             {/* Team Assignment */}
                             {initiative.team && (

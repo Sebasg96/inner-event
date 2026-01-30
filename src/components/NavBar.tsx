@@ -82,6 +82,39 @@ export default function NavBar() {
                         </Link>
                     ))}
                 </div>
+
+                <div style={{ marginTop: 'auto', width: '100%', display: 'flex', flexDirection: 'column', gap: '0.5rem', borderTop: '1px solid #cbd5e1', paddingTop: '1.5rem' }}>
+                    <Link
+                        href="/about"
+                        className={styles.mobileLink}
+                        onClick={toggleMenu}
+                        style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem' }}
+                    >
+                        About
+                    </Link>
+                    <button
+                        onClick={async () => {
+                            const { createClient } = await import('@/lib/supabase/client');
+                            const supabase = createClient();
+                            await supabase.auth.signOut();
+                            window.location.href = '/login';
+                        }}
+                        className={styles.mobileLink}
+                        style={{
+                            color: '#ef4444',
+                            textAlign: 'left',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '0.95rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem'
+                        }}
+                    >
+                        Cerrar Sesión
+                    </button>
+                </div>
             </div>
         </div>
     );

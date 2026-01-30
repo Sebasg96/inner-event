@@ -23,7 +23,7 @@
 .hamburgerIcon {
     width: 24px;
     height: 2px;
-    background-color: hsl(var(--text-main));
+    background-color: white;
     position: relative;
     transition: all 0.3s ease;
 }
@@ -34,7 +34,7 @@
     position: absolute;
     width: 24px;
     height: 2px;
-    background-color: hsl(var(--text-main));
+    background-color: white;
     transition: all 0.3s ease;
 }
 

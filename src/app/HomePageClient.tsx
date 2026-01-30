@@ -17,7 +17,7 @@ interface HomePageClientProps {
 
 export default function HomePageClient({ purpose }: HomePageClientProps) {
     const { dict } = useLanguage();
-    const { user, isLoading } = useAuth();
+    const { user, isLoading, logout } = useAuth();
     const router = useRouter();
 
     useEffect(() => {
@@ -84,7 +84,21 @@ export default function HomePageClient({ purpose }: HomePageClientProps) {
                     <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>{user.tenantName}</div>
                 </div>
                 <LanguageSwitcher />
-                <Link href="/login" onClick={() => localStorage.removeItem('inner_event_user')} style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))', textDecoration: 'underline' }}>Logout</Link>
+                <button
+                    onClick={() => logout()}
+                    style={{
+                        fontSize: '0.8rem',
+                        color: 'hsl(var(--text-muted))',
+                        textDecoration: 'underline',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        padding: 0,
+                        fontFamily: 'inherit'
+                    }}
+                >
+                    Logout
+                </button>
             </div>
 
             {/* Header Section - Wrapped in White Panel for Visibility & "Tranquility" */}

@@ -22,8 +22,11 @@ export async function verifyLogin(formData: FormData) {
     });
 
     if (error || !data.user) {
+        console.error("Supabase Auth Error:", error?.message);
         return { error: 'Invalid credentials or login failed.' };
     }
+
+    console.log("Supabase Auth Success. User Email:", data.user.email);
 
     // 2. Obtener el perfil extendido de Prisma usando el email
     const user = await prisma.user.findUnique({
@@ -32,8 +35,11 @@ export async function verifyLogin(formData: FormData) {
     });
 
     if (!user) {
-        return { error: 'User authenticated in Supabase but not found in Pragma DB.' };
+        console.error("Prisma User Not Found. Searching for:", data.user.email);
+        return { error: `User authenticated in Supabase but not found in Pragma DB (Email: ${data.user.email}).` };
     }
+
+    console.log("Prisma User Found:", user.email);
 
     // 3. Set Cookies de Legacy por compatibilidad momentánea (el middleware de Supabase gestiona la sesión real)
     const cookieStore = await cookies();
@@ -148,6 +154,33 @@ async function getTenantId() {
     return dbUser.tenantId;
 }
 
+// Helper to get current user with area info
+async function getCurrentUser() {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        const cookieStore = await cookies();
+        const userId = cookieStore.get('inner_event_user_id')?.value;
+        if (!userId) throw new Error('Unauthorized');
+        
+        const dbUser = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true, tenantId: true, area: true, role: true }
+        });
+        if (!dbUser) throw new Error('User not found');
+        return dbUser;
+    }
+
+    const dbUser = await prisma.user.findUnique({
+        where: { email: user.email },
+        select: { id: true, tenantId: true, area: true, role: true }
+    });
+
+    if (!dbUser) throw new Error('User context not found in database');
+    return dbUser;
+}
+
 export async function createUser(formData: FormData) {
     const tenantId = await getTenantId();
     const name = formData.get('name') as string;
@@ -231,9 +264,17 @@ export async function createKeyResult(formData: FormData) {
     const targetValue = parseFloat(formData.get('targetValue') as string);
     const metricUnit = formData.get('metricUnit') as string;
     const objectiveId = formData.get('objectiveId') as string;
+    const trackingType = formData.get('trackingType') as any;
 
     await prisma.keyResult.create({
-        data: { statement, targetValue, metricUnit, objectiveId, tenantId },
+        data: { 
+            statement, 
+            targetValue, 
+            metricUnit, 
+            objectiveId, 
+            tenantId,
+            trackingType: trackingType || 'PERCENTAGE'
+        },
     });
     revalidatePath('/strategy');
 }
@@ -254,16 +295,106 @@ export async function updateKeyResult(id: string, formData: FormData) {
     revalidatePath('/strategy/planning');
 }
 
+export async function deleteKeyResult(id: string) {
+    try {
+        await prisma.$transaction(async (tx) => {
+            // Delete associated Initiatives first
+            await tx.initiative.deleteMany({
+                where: { keyResultId: id }
+            });
+
+            // Delete the KR
+            await tx.keyResult.delete({
+                where: { id }
+            });
+        });
+
+        revalidatePath('/strategy');
+        return { success: true };
+    } catch (error) {
+        console.error('Error deleting key result:', error);
+        return { error: 'Failed to delete key result' };
+    }
+}
+
+export async function updateKeyResultValue(
+    id: string, 
+    newValue: number, 
+    numeratorValue?: number, 
+    denominatorValue?: number,
+    numeratorLabel?: string,
+    denominatorLabel?: string
+) {
+    try {
+        const tenantId = await getTenantId();
+        
+        // Get current values for history
+        const kr = await prisma.keyResult.findUnique({
+            where: { id },
+            select: { currentValue: true }
+        });
+        
+        if (!kr) throw new Error('Key Result not found');
+
+        const supabase = await createClient();
+        const { data: { user: sbUser } } = await supabase.auth.getUser();
+        let userId = null;
+        if (sbUser) {
+            const dbUser = await prisma.user.findUnique({ where: { email: sbUser.email } });
+            userId = dbUser?.id;
+        }
+
+        await prisma.$transaction(async (tx) => {
+            // Update the KR with calculated fulfillment and raw inputs
+            await tx.keyResult.update({
+                where: { id },
+                data: { 
+                    currentValue: newValue,
+                    numeratorValue: numeratorValue ?? undefined,
+                    denominatorValue: denominatorValue ?? undefined,
+                    numeratorLabel: numeratorLabel ?? undefined,
+                    denominatorLabel: denominatorLabel ?? undefined
+                }
+            });
+
+            // Create history log
+            await tx.keyResultUpdate.create({
+                data: {
+                    keyResultId: id,
+                    oldValue: kr.currentValue,
+                    newValue: newValue,
+                    userId: userId || undefined
+                }
+            });
+        });
+
+        revalidatePath('/strategy');
+        return { success: true };
+    } catch (error) {
+        console.error('Error updating key result progress:', error);
+        return { error: 'Failed to update progress' };
+    }
+}
+
 export async function createInitiative(formData: FormData) {
     const tenantId = await getTenantId();
     const title = formData.get('title') as string;
     const keyResultId = formData.get('keyResultId') as string;
     const horizon = formData.get('horizon') as Horizon;
+    const ownerId = formData.get('ownerId') as string | null;
 
-    await prisma.initiative.create({
-        data: { title, keyResultId, horizon, tenantId, status: 'TODO' },
+    const initiative = await prisma.initiative.create({
+        data: { 
+            title, 
+            keyResultId, 
+            horizon, 
+            tenantId, 
+            status: 'TODO',
+            ownerId: ownerId || null
+        },
     });
     revalidatePath('/');
+    return { success: true, id: initiative.id };
 }
 
 export async function createKanbanTask(formData: FormData) {
@@ -276,6 +407,17 @@ export async function createKanbanTask(formData: FormData) {
         data: { title, initiativeId, assigneeId: assigneeId || null, tenantId, status: 'TODO' },
     });
     revalidatePath(`/strategy/initiative/${initiativeId}`);
+}
+
+export async function updateInitiative(id: string, formData: FormData) {
+    const title = formData.get('title') as string;
+    
+    await prisma.initiative.update({
+        where: { id },
+        data: { title }
+    });
+    
+    revalidatePath(`/strategy/initiative/${id}`);
 }
 
 export async function updateKanbanTaskStatus(id: string, status: KanbanStatus, initiativeId: string) {
@@ -396,13 +538,94 @@ export async function updateObjectiveTitle(objectiveId: string, newTitle: string
     const tenantId = await getTenantId();
     await prisma.objective.update({
         where: { id: objectiveId },
-        data: { statement: newTitle } // Note: Schema calls it 'statement', formerly mapped to title? Checking schema...
-        // Actually schema says 'statement' for Objective. 'title' was used in args but let's be consistent.
-        // Wait, 'updateObjectiveTitle' was added earlier. Let me double check if I used 'title' or 'statement'.
-        // Schema usually has 'statement' for these. I will assume statement.
+        data: { statement: newTitle }
     });
     revalidatePath('/strategy');
     revalidatePath('/');
+}
+
+export async function deleteMega(id: string) {
+    try {
+        await prisma.$transaction(async (tx) => {
+            // 1. Find all Objectives for this Mega
+            const objectives = await tx.objective.findMany({
+                where: { megaId: id },
+                select: { id: true }
+            });
+
+            const objectiveIds = objectives.map(o => o.id);
+
+            // 2. Find all Key Results for these Objectives
+            const keyResults = await tx.keyResult.findMany({
+                where: { objectiveId: { in: objectiveIds } },
+                select: { id: true }
+            });
+
+            const keyResultIds = keyResults.map(k => k.id);
+
+            // 3. Delete Initiatives linked to these KRs
+            // Note: If KanbanTasks exist, they might need deletion too if not using cascade in schema
+            if (keyResultIds.length > 0) {
+                await tx.initiative.deleteMany({
+                    where: { keyResultId: { in: keyResultIds } }
+                });
+            }
+
+            // 4. Delete Key Results
+            if (objectiveIds.length > 0) {
+                await tx.keyResult.deleteMany({
+                    where: { objectiveId: { in: objectiveIds } }
+                });
+            }
+
+            // 5. Delete Objectives
+            await tx.objective.deleteMany({
+                where: { megaId: id }
+            });
+
+            // 6. Delete the Mega
+            await tx.mega.delete({
+                where: { id }
+            });
+        });
+
+        revalidatePath('/strategy');
+        return { success: true };
+    } catch (error) {
+        console.error('Error deleting mega:', error);
+        return { error: 'Failed to delete mega' };
+    }
+}
+
+export async function deleteObjective(id: string) {
+    try {
+        await prisma.$transaction(async (tx) => {
+            // Find all Key Results for this objective
+            const keyResults = await tx.keyResult.findMany({
+                where: { objectiveId: id },
+                include: { initiatives: true }
+            });
+
+            for (const kr of keyResults) {
+                for (const initiative of kr.initiatives) {
+                    await tx.initiative.delete({ where: { id: initiative.id } });
+                }
+                await tx.keyResult.delete({ where: { id: kr.id } });
+            }
+
+            await tx.objective.delete({
+                where: { id }
+            });
+        });
+
+        revalidatePath('/strategy');
+        revalidatePath('/strategy/planning');
+        revalidatePath('/');
+        return { success: true };
+    } catch (error) {
+        console.error('Error deleting objective:', error);
+        return { error: 'Failed to delete objective' };
+    }
 }
 
 // Phase 40: Rituales de Seguimiento (Rituals)
@@ -495,9 +718,95 @@ export async function createOrganizationalValue(formData: FormData) {
     revalidatePath('/strategy/planning');
 }
 
+// Get all users from the current tenant for owner selection
+export async function getTenantUsers() {
+    const tenantId = await getTenantId();
+    
+    const users = await prisma.user.findMany({
+        where: { tenantId },
+        select: {
+            id: true,
+            name: true,
+            lastName: true,
+            email: true,
+            area: true,
+            jobTitle: true
+        },
+        orderBy: { name: 'asc' }
+    });
+    
+    return users;
+}
+
 export async function deleteOrganizationalValue(id: string) {
     await prisma.organizationalValue.delete({
         where: { id }
     });
     revalidatePath('/strategy/planning');
+}
+
+// Strategic Access Management
+export async function grantStrategicAccess(formData: FormData) {
+    const tenantId = await getTenantId();
+    const userId = formData.get('userId') as string;
+    const entityType = formData.get('entityType') as 'purpose' | 'objective' | 'initiative';
+    const entityId = formData.get('entityId') as string;
+
+    const data: any = {
+        userId,
+        tenantId,
+    };
+
+    // Set the appropriate foreign key based on entity type
+    if (entityType === 'purpose') {
+        data.purposeId = entityId;
+    } else if (entityType === 'objective') {
+        data.objectiveId = entityId;
+    } else if (entityType === 'initiative') {
+        data.initiativeId = entityId;
+    }
+
+    await prisma.strategicAccess.create({ data });
+    revalidatePath('/');
+    return { success: true };
+}
+
+export async function revokeStrategicAccess(accessId: string) {
+    await prisma.strategicAccess.delete({
+        where: { id: accessId }
+    });
+    revalidatePath('/');
+    return { success: true };
+}
+
+// Get strategic access for a specific entity
+export async function getStrategicAccess(entityType: 'purpose' | 'objective' | 'initiative', entityId: string) {
+    const tenantId = await getTenantId();
+    
+    const where: any = { tenantId };
+    
+    if (entityType === 'purpose') {
+        where.purposeId = entityId;
+    } else if (entityType === 'objective') {
+        where.objectiveId = entityId;
+    } else if (entityType === 'initiative') {
+        where.initiativeId = entityId;
+    }
+
+    const accesses = await prisma.strategicAccess.findMany({
+        where,
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    lastName: true,
+                    email: true,
+                    area: true
+                }
+            }
+        }
+    });
+
+    return accesses;
 }

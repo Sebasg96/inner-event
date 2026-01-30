@@ -108,6 +108,21 @@
     border-color: hsl(var(--primary) / 0.5);
 }
 
+.megaContentWrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    width: 100%;
+}
+
+@media (min-width: 1440px) {
+    .megaContentWrapper {
+        /* Extra wide screens could even do side-by-side mega/objectives if needed, 
+           but a grid of objectives is usually enough */
+    }
+}
+
+
 .megaHeader {
     display: flex;
     justify-content: space-between;
@@ -126,8 +141,9 @@
 
 .megaTitle {
     font-size: 1.5rem;
-    font-weight: 600;
-    color: hsl(var(--text-main));
+    font-weight: 700;
+    color: #000000;
+    letter-spacing: -0.02em;
 }
 
 .megaDate {
@@ -144,6 +160,20 @@
     flex-direction: column;
     gap: 1.5rem;
 }
+
+.objectivesGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 2rem;
+    align-items: start;
+}
+
+@media (max-width: 1024px) {
+    .objectivesGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
 
 .objectiveItem {
     position: relative;
@@ -217,4 +247,41 @@
         margin-bottom: 1rem;
         padding-right: 1rem;
     }
+
+    @media (max-width: 768px) {
+        .homeUserInfo {
+            position: static;
+            width: 100%;
+            justify-content: flex-end;
+            margin-bottom: 1rem;
+            padding-right: 1rem;
+        }
+    }
+
+    .visiblePlaceholder::placeholder {
+        color: #64748b !important;
+        opacity: 1;
+    }
+}
+
+/* Cross-browser placeholder styling - Global Override */
+.visiblePlaceholder::placeholder {
+    color: #475569 !important;
+    /* Slate-600 */
+    opacity: 1;
+}
+
+.visiblePlaceholder::-webkit-input-placeholder {
+    color: #475569 !important;
+    opacity: 1;
+}
+
+.visiblePlaceholder::-moz-placeholder {
+    color: #475569 !important;
+    opacity: 1;
+}
+
+.visiblePlaceholder:-ms-input-placeholder {
+    color: #475569 !important;
+    opacity: 1;
 }

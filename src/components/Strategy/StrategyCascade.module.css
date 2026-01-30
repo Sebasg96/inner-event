@@ -51,8 +51,9 @@
 
 .tree {
     display: flex;
-    justify-content: center;
     gap: 2rem;
+    width: max-content;
+    margin: 0 auto;
     /* Compact gap */
 }
 
