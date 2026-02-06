@@ -46,9 +46,13 @@ export default async function ExecutionPage() {
     const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPERADMIN';
 
     // Fetch Real Data with area filtering
-    const [rawInitiatives, krs] = await Promise.all([
-        getKanbanBoard(tenantId, userArea, isAdmin, currentUser?.id),
-        getKeyResults(tenantId, userArea, isAdmin, currentUser?.id)
+    const [rawInitiatives, krs, tenantUsers] = await Promise.all([
+        getKanbanBoard(tenantId),
+        getKeyResults(tenantId),
+        prisma.user.findMany({
+            where: { tenantId },
+            select: { id: true, name: true, lastName: true, area: true }
+        })
     ]);
 
     const initiatives = rawInitiatives.map((i: any) => ({
@@ -59,6 +63,7 @@ export default async function ExecutionPage() {
         progress: i.progress,
         description: i.description,
         owner: i.owner ? {
+            id: i.owner.id,
             name: i.owner.name,
             lastName: i.owner.lastName,
             area: i.owner.area
@@ -76,7 +81,7 @@ export default async function ExecutionPage() {
     return (
         <div style={{ paddingBottom: '2rem' }}>
             <StrategyTabs />
-            <KanbanPageClient initiatives={initiatives} krs={krs} />
+            <KanbanPageClient initiatives={initiatives} krs={krs} tenantUsers={tenantUsers} />
         </div>
     );
 }

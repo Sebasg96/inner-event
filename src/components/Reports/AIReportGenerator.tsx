@@ -1,12 +1,16 @@
 ﻿'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import styles from '@/app/strategy/page.module.css';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import ReactMarkdown from 'react-markdown';
 
 export default function AIReportGenerator() {
     const [selectedModules, setSelectedModules] = useState<string[]>(['strategy']);
     const [isGenerating, setIsGenerating] = useState(false);
     const [report, setReport] = useState<string | null>(null);
+    const reportRef = useRef<HTMLDivElement>(null);
 
     const modules = ['strategy', 'capacities', 'rituals', 'analytics', 'emergent'];
 
@@ -25,34 +29,67 @@ export default function AIReportGenerator() {
     const handleGenerate = async () => {
         if (selectedModules.length === 0) return;
         setIsGenerating(true);
+        setReport(null);
         try {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            setReport(`
-## Informe Ejecutivo Integrado
-*Módulos analizados: ${selectedModules.join(', ').toUpperCase()}*
+            const { generateExecutiveReport } = await import('@/app/reports/actions');
+            const result = await generateExecutiveReport(selectedModules);
 
-### Resumen Holístico
-La correlación entre la ejecución estratégica y la capacidad de los equipos muestra una mejora del 12%. Los rituales de seguimiento han aumentado la visibilidad de los "hard choices" necesarios en la estrategia emergente.
-
-### Hallazgos por Módulo
-${selectedModules.map(m => `
-#### ${m.toUpperCase()}
-*   Se identificaron 3 nuevos patrones de éxito.
-*   Riesgo moderado en la adopción de nuevas herramientas.
-`).join('')}
-
-### Recomendaciones IA
-1.  **Sinergia:** Cruzar los datos de *rituals* con *capacities* para detectar sobrecarga cognitiva.
-2.  **Acción Inmediata:** Aprobar las renuncias pendientes en el módulo emergente.
-            `);
+            if (result.success && result.report) {
+                setReport(result.report);
+            } else {
+                setReport(`Error: ${result.error || "No se pudo generar el informe."}`);
+            }
+        } catch (error) {
+            console.error(error);
+            setReport("Error de conexión al generar el informe.");
         } finally {
             setIsGenerating(false);
         }
     };
 
+    const handleDownloadPDF = async () => {
+        if (!reportRef.current) return;
+
+        try {
+            const canvas = await html2canvas(reportRef.current, {
+                scale: 2, // Higher resolution
+                backgroundColor: '#ffffff', // White background for professional document
+                useCORS: true
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            const imgWidth = 210; // A4 width in mm
+            const pageHeight = 297; // A4 height in mm
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            let heightLeft = imgHeight;
+            let position = 0;
+
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+
+            while (heightLeft >= 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+
+            pdf.save('Informe_Ejecutivo_Pragma.pdf');
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+            alert("Error al generar el PDF. Inténtalo de nuevo.");
+        }
+    };
+
     return (
         <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem' }}>
-            <h2 style={{ color: 'hsl(var(--text-main))', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h2 style={{ color: 'white', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 🤖 Generador de Informes Inteligentes
             </h2>
             <p style={{ color: 'hsl(var(--text-muted))', marginBottom: '1.5rem' }}>
@@ -61,15 +98,17 @@ ${selectedModules.map(m => `
 
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '1.5rem' }}>
                 <button
+                    type="button"
                     onClick={() => toggleModule('all')}
                     style={{
                         padding: '0.5rem 1rem',
                         borderRadius: '20px',
-                        border: '1px solid hsl(var(--primary))',
-                        background: 'hsl(var(--bg-app))',
+                        border: '1px solid #0FB4A8',
+                        background: 'rgba(255,255,255,0.05)',
                         color: 'white',
                         cursor: 'pointer',
-                        fontWeight: 600
+                        fontWeight: 600,
+                        backdropFilter: 'blur(5px)'
                     }}
                 >
                     Todos
@@ -79,16 +118,18 @@ ${selectedModules.map(m => `
                     return (
                         <button
                             key={mod}
+                            type="button"
                             onClick={() => toggleModule(mod)}
                             style={{
                                 padding: '0.5rem 1rem',
                                 borderRadius: '20px',
-                                border: isSelected ? '1px solid hsl(var(--primary))' : '1px solid hsl(var(--border-glass))',
-                                background: isSelected ? 'hsl(var(--primary))' : 'transparent',
-                                color: isSelected ? 'white' : 'hsl(var(--text-muted))',
+                                border: isSelected ? '1px solid #0FB4A8' : '1px solid rgba(255,255,255,0.2)',
+                                background: isSelected ? '#0FB4A8' : 'rgba(255,255,255,0.05)',
+                                color: isSelected ? 'white' : 'rgba(255,255,255,0.6)',
                                 cursor: 'pointer',
                                 textTransform: 'capitalize',
-                                transition: 'all 0.2s'
+                                transition: 'all 0.2s',
+                                fontWeight: isSelected ? 600 : 400
                             }}
                         >
                             {mod}
@@ -104,24 +145,145 @@ ${selectedModules.map(m => `
                 style={{
                     width: '100%',
                     maxWidth: '300px',
-                    background: 'hsl(var(--bg-app))',
+                    background: 'linear-gradient(135deg, #0FB4A8 0%, #0d9488 100%)', // Gradient for depth
                     color: 'white',
-                    border: '1px solid hsl(var(--border-glass))',
-                    cursor: isGenerating ? 'wait' : 'pointer'
+                    border: 'none',
+                    borderRadius: '12px',
+                    padding: '1rem',
+                    fontSize: '1rem',
+                    fontWeight: 700,
+                    cursor: isGenerating ? 'wait' : 'pointer',
+                    opacity: isGenerating || selectedModules.length === 0 ? 0.7 : 1,
+                    boxShadow: '0 4px 15px rgba(15, 180, 168, 0.4)', // Teal glow
+                    transition: 'all 0.3s ease',
+                    transform: isGenerating ? 'none' : 'scale(1)',
+                    marginTop: '1rem' // Separation
+                }}
+                onMouseEnter={(e) => {
+                    if (!isGenerating && selectedModules.length > 0) {
+                        e.currentTarget.style.transform = 'scale(1.02) translateY(-2px)';
+                        e.currentTarget.style.boxShadow = '0 8px 25px rgba(15, 180, 168, 0.6)';
+                    }
+                }}
+                onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.boxShadow = '0 4px 15px rgba(15, 180, 168, 0.4)';
                 }}
             >
-                {isGenerating ? 'Analizando Datos Cruzados...' : 'Generar Informe Ejecutivo'}
+                {isGenerating ? (
+                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                        🤖 Analizando...
+                    </span>
+                ) : (
+                    <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                        ✨ Generar Informe Ejecutivo
+                    </span>
+                )}
             </button>
 
             {report && (
-                <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'hsl(var(--bg-surface))', borderRadius: '8px', borderLeft: '4px solid hsl(var(--accent))' }}>
+                <div style={{ marginTop: '2rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginBottom: '1rem' }}>
-                        <button className="btn-secondary" onClick={() => alert('Descargando PDF...')} style={{ fontSize: '0.8rem' }}>📥 Descargar PDF</button>
-                        <button className="btn-secondary" onClick={() => alert('Enviado a correo asociado.')} style={{ fontSize: '0.8rem' }}>📧 Enviar por Correo</button>
+                        <button
+                            onClick={handleDownloadPDF}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                borderRadius: '12px',
+                                border: '1px solid #0FB4A8',
+                                background: 'rgba(15, 180, 168, 0.2)', // Semi-transparent teal
+                                color: 'white',
+                                fontSize: '0.9rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                backdropFilter: 'blur(5px)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                transition: 'all 0.2s ease',
+                                boxShadow: '0 2px 10px rgba(15, 180, 168, 0.2)'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = '#0FB4A8';
+                                e.currentTarget.style.boxShadow = '0 4px 15px rgba(15, 180, 168, 0.4)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'rgba(15, 180, 168, 0.2)';
+                                e.currentTarget.style.boxShadow = '0 2px 10px rgba(15, 180, 168, 0.2)';
+                            }}
+                        >
+                            <span style={{ fontSize: '1.2em' }}>📥</span> Descargar PDF
+                        </button>
                     </div>
-                    <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', color: 'hsl(var(--text-main))', lineHeight: '1.6' }}>
-                        {report}
-                    </pre>
+
+                    {/* Document Container - Styled for both screen and PDF */}
+                    <div
+                        ref={reportRef}
+                        style={{
+                            padding: '3rem',
+                            background: 'white',
+                            borderRadius: '4px',
+                            color: '#1e293b',
+                            boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                            maxWidth: '100%',
+                            margin: '0 auto',
+                            fontFamily: 'system-ui, -apple-system, sans-serif'
+                        }}
+                    >
+                        {/* Header with Logo */}
+                        <div style={{
+                            borderBottom: '2px solid #0FB4A8',
+                            paddingBottom: '1.5rem',
+                            marginBottom: '2rem',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                        }}>
+                            <div>
+                                <img
+                                    src="/report-logo.png"
+                                    alt="Pragma"
+                                    style={{ height: '50px', marginBottom: '0.5rem', objectFit: 'contain' }}
+                                    onError={(e) => {
+                                        e.currentTarget.src = "/pragma-logo.png";
+                                        e.currentTarget.style.height = '40px';
+                                    }}
+                                />
+                                <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                                    Informe Estratégico Ejecutivo
+                                </h1>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                                <div style={{ fontSize: '0.85rem', color: '#64748b' }}>Generado el</div>
+                                <div style={{ fontWeight: 600, color: '#334155' }}>{new Date().toLocaleDateString()}</div>
+                            </div>
+                        </div>
+
+                        {/* Markdown Content with specialized styling */}
+                        <div className="report-content" style={{ lineHeight: '1.7' }}>
+                            <ReactMarkdown components={{
+                                h1: ({ node, ...props }) => <h2 style={{ color: '#0FB4A8', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem', marginTop: '2rem' }} {...props} />,
+                                h2: ({ node, ...props }) => <h3 style={{ color: '#334155', marginTop: '1.5rem', fontSize: '1.2rem' }} {...props} />,
+                                ul: ({ node, ...props }) => <ul style={{ paddingLeft: '1.5rem', marginBottom: '1rem' }} {...props} />,
+                                li: ({ node, ...props }) => <li style={{ marginBottom: '0.5rem', color: '#475569' }} {...props} />,
+                                p: ({ node, ...props }) => <p style={{ marginBottom: '1rem', color: '#475569' }} {...props} />,
+                                strong: ({ node, ...props }) => <strong style={{ color: '#1e293b', fontWeight: 700 }} {...props} />
+                            }}>
+                                {report}
+                            </ReactMarkdown>
+                        </div>
+
+                        {/* Footer */}
+                        <div style={{
+                            marginTop: '4rem',
+                            borderTop: '1px solid #e2e8f0',
+                            paddingTop: '1rem',
+                            textAlign: 'center',
+                            fontSize: '0.8rem',
+                            color: '#94a3b8'
+                        }}>
+                            Generado por IA • Inner Event Platform • Confidencial
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

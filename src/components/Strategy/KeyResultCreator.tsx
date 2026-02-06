@@ -116,6 +116,21 @@ export default function KeyResultCreator({ objectiveId }: { objectiveId: string 
                             }}
                         />
                     </div>
+                    <div style={{ flex: '1 1 30%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>PERIOCIDAD</label>
+                        <select
+                            name="updatePeriodicity"
+                            style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.6rem', fontSize: '0.9rem', color: 'black', background: 'white', outline: 'none' }}
+                        >
+                            <option value="">(Opcional)</option>
+                            <option value="DAILY">Diaria</option>
+                            <option value="WEEKLY">Semanal</option>
+                            <option value="BIWEEKLY">Quincenal</option>
+                            <option value="MONTHLY">Mensual</option>
+                            <option value="QUARTERLY">Trimestral</option>
+                            <option value="YEARLY">Anual</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.75rem' }}>

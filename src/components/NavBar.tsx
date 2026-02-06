@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import LanguageSwitcher from './LanguageSwitcher';
 import styles from './NavBar.module.css';
+import NotificationBell from './Notifications/NotificationBell';
 
 export default function NavBar() {
     const { dict } = useLanguage();
@@ -46,6 +47,7 @@ export default function NavBar() {
 
             {/* Default Controls: Lang Switch + Hamburger */}
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <NotificationBell />
                 <div className={styles.desktopLangSwitch}>
                     <LanguageSwitcher />
                 </div>

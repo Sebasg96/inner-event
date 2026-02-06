@@ -30,6 +30,7 @@ interface Props {
         numeratorLabel?: string;
         denominatorLabel?: string;
         trackingType: 'PERCENTAGE' | 'UNITS';
+        updatePeriodicity?: string | null;
         updates?: HistoryRecord[];
     };
 }
@@ -45,6 +46,7 @@ export default function KeyResultProgressModal({ isOpen, onClose, kr }: Props) {
 
     // states for units-based tracking (UNITS)
     const [unitCurrentValue, setUnitCurrentValue] = useState<number | string>(kr.currentValue ?? 0);
+    const [periodicity, setPeriodicity] = useState<string>(kr.updatePeriodicity || '');
 
     const [isSaving, setIsSaving] = useState(false);
 
@@ -74,6 +76,8 @@ export default function KeyResultProgressModal({ isOpen, onClose, kr }: Props) {
             } else {
                 await updateKeyResultValue(kr.id, u);
             }
+            // Dispatch event to update notifications
+            window.dispatchEvent(new Event('kr-updated'));
             onClose();
         } catch (error) {
             console.error('Failed to update progress', error);
@@ -137,6 +141,29 @@ export default function KeyResultProgressModal({ isOpen, onClose, kr }: Props) {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                         <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px', borderBottom: '2px solid #f1f5f9', paddingBottom: '0.75rem' }}>
                             1. CAPTURA DE DATOS
+                        </div>
+
+                        <div style={{ marginBottom: '1rem' }}>
+                            <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b', display: 'block', marginBottom: '0.3rem' }}>PERIODICIDAD DE ACTUALIZACIÓN</label>
+                            <select
+                                value={periodicity}
+                                onChange={async (e) => {
+                                    const val = e.target.value;
+                                    setPeriodicity(val); // Optimistic update
+                                    const { updateKeyResultPeriodicity } = await import('@/app/actions');
+                                    await updateKeyResultPeriodicity(kr.id, val || null);
+                                    router.refresh();
+                                }}
+                                style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.6rem', fontSize: '0.85rem', color: '#334155', background: 'white', outline: 'none' }}
+                            >
+                                <option value="">(Sin definir)</option>
+                                <option value="DAILY">Diaria</option>
+                                <option value="WEEKLY">Semanal</option>
+                                <option value="BIWEEKLY">Quincenal</option>
+                                <option value="MONTHLY">Mensual</option>
+                                <option value="QUARTERLY">Trimestral</option>
+                                <option value="YEARLY">Anual</option>
+                            </select>
                         </div>
 
                         {kr.trackingType === 'PERCENTAGE' ? (

@@ -45,39 +45,9 @@ export default async function PlanningPage() {
     const userArea = currentUser?.area;
     const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPERADMIN';
 
-    // Build objective where clause based on area and access
+    // Build objective where clause based on simple parent check
     const buildObjectiveWhere = (baseWhere: any = {}) => {
-        if (isAdmin) return baseWhere; // Admins see everything
-
-        // Safety check for user ID (though redirect protects this page)
-        if (!currentUser?.id) return { ...baseWhere, area: null };
-
-        const accessCondition = {
-            strategicAccess: {
-                some: {
-                    userId: currentUser.id
-                }
-            }
-        };
-
-        if (userArea) {
-            return {
-                ...baseWhere,
-                OR: [
-                    { area: null }, // Company-level
-                    { area: userArea }, // User's area
-                    accessCondition
-                ]
-            };
-        }
-
-        return {
-            ...baseWhere,
-            OR: [
-                { area: null },
-                accessCondition
-            ]
-        };
+        return baseWhere;
     };
 
     // Fetch Purpose and full Cascade Tree (L1 -> L2 -> L3) with area filtering
@@ -89,8 +59,10 @@ export default async function PlanningPage() {
                     objectives: {
                         where: buildObjectiveWhere({ parentObjectiveId: null }),
                         include: {
+                            owner: true,
                             keyResults: {
                                 include: {
+                                    owner: true,
                                     initiatives: {
                                         select: { id: true, progress: true, status: true, title: true }
                                     },
@@ -106,6 +78,7 @@ export default async function PlanningPage() {
                                     owner: true,
                                     keyResults: {
                                         include: {
+                                            owner: true,
                                             initiatives: { select: { id: true, progress: true, status: true, title: true } },
                                             updates: {
                                                 include: { user: { select: { name: true } } },
@@ -119,6 +92,7 @@ export default async function PlanningPage() {
                                             owner: true,
                                             keyResults: {
                                                 include: {
+                                                    owner: true,
                                                     initiatives: { select: { id: true, progress: true, status: true, title: true } },
                                                     updates: {
                                                         include: { user: { select: { name: true } } },
@@ -157,6 +131,11 @@ export default async function PlanningPage() {
         where: { tenantId }
     });
 
+    const tenantUsers = await prisma.user.findMany({
+        where: { tenantId },
+        select: { id: true, name: true, lastName: true, email: true, role: true, area: true }
+    });
+
     return (
         <div style={{ paddingBottom: '2rem' }}>
             {/* <StrategyTabs /> Removed as per user request to focus on Purpose */}
@@ -167,6 +146,7 @@ export default async function PlanningPage() {
                     areaPurpose={areaPurpose}
                     analysisData={analysisData}
                     organizationalValues={organizationalValues}
+                    tenantUsers={tenantUsers}
                 />
             </div>
         </div>

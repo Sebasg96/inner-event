@@ -254,8 +254,19 @@ model KeyResult {
   initiatives Initiative[]
   updates     KeyResultUpdate[]
 
+  updatePeriodicity UpdatePeriodicity?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum UpdatePeriodicity {
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
 }
 
 model KeyResultUpdate {

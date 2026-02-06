@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { createPurpose, createAreaPurpose, createMega, createObjective, createKeyResult, updateKeyResult, updatePurpose, updateMega, updateObjectiveTitle, createOrganizationalValue, deleteOrganizationalValue, deleteObjective } from '@/app/actions';
+import { createPurpose, createAreaPurpose, createMega, createObjective, createKeyResult, updateKeyResult, updatePurpose, updateMega, updateObjectiveTitle, createOrganizationalValue, deleteOrganizationalValue, deleteObjective, updateObjectiveOwner, updateKeyResultOwner, deleteKeyResult } from '@/app/actions';
 import styles from '@/app/strategy/page.module.css';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import NavBar from '../NavBar';
 import { useModuleTheme } from '@/lib/hooks/useModuleTheme';
 import EditableText from '@/components/EditableText';
@@ -35,6 +35,7 @@ interface KeyResult {
     denominatorLabel?: string;
     trackingType: 'PERCENTAGE' | 'UNITS';
     updates?: any[];
+    owner?: { id: string, name: string, lastName: string | null } | null;
 }
 
 interface Objective {
@@ -42,7 +43,7 @@ interface Objective {
     statement: string;
     keyResults: KeyResult[];
     childObjectives?: any[];
-    owner?: any;
+    owner?: { id: string, name: string, lastName: string | null } | null;
 }
 
 interface Mega {
@@ -73,15 +74,110 @@ type StrategyDashboardProps = {
     areaPurpose?: AreaPurpose | null;
     analysisData?: Record<string, any>; // Keeping loose for analysis blob
     organizationalValues?: OrganizationalValue[];
+    tenantUsers?: { id: string, name: string, lastName: string | null, role: string, area: string | null }[];
 };
 
-export default function StrategyDashboard({ purpose, areaPurpose, analysisData, organizationalValues = [] }: StrategyDashboardProps) {
+export default function StrategyDashboard({ purpose, areaPurpose, analysisData, organizationalValues = [], tenantUsers = [] }: StrategyDashboardProps) {
     const { dict } = useLanguage();
     const router = useRouter(); // Initialize router for redirects
     // Removed manual editing state
     const theme = useModuleTheme();
     const [showAreaPurpose, setShowAreaPurpose] = useState(!!areaPurpose?.statement);
     const [selectedKR, setSelectedKR] = useState<KeyResult | null>(null);
+    const searchParams = useSearchParams();
+
+    // Effect to open KR from URL
+    React.useEffect(() => {
+        const openKrId = searchParams.get('openKrId');
+        if (openKrId && purpose && purpose.megas) {
+            // Helper to recursively find KR in objectives
+            const searchObjectives = (objs: Objective[]): KeyResult | null => {
+                for (const obj of objs) {
+                    if (obj.keyResults) {
+                        const found = obj.keyResults.find(k => k.id === openKrId);
+                        if (found) return found;
+                    }
+                    if (obj.childObjectives) {
+                        const foundChild = searchObjectives(obj.childObjectives);
+                        if (foundChild) return foundChild;
+                    }
+                }
+                return null;
+            };
+
+            // Iterate megas to find match
+            let targetKR: KeyResult | null = null;
+            for (const mega of purpose.megas) {
+                if (mega.objectives) {
+                    targetKR = searchObjectives(mega.objectives);
+                    if (targetKR) break;
+                }
+            }
+
+            if (targetKR) {
+                setSelectedKR(targetKR);
+                // Remove the query param so it doesn't reopen on refresh
+                const newParams = new URLSearchParams(searchParams.toString());
+                newParams.delete('openKrId');
+                router.replace(`/strategy/planning?${newParams.toString()}`, { scroll: false });
+            }
+        }
+    }, [searchParams, purpose]);
+
+    // Calculate Objective Progress
+    const calculateObjectiveProgress = (objective: Objective) => {
+        if (!objective.keyResults || objective.keyResults.length === 0) return 0;
+
+        let totalProgress = 0;
+        let count = 0;
+
+        objective.keyResults.forEach(kr => {
+            if (kr.targetValue !== 0) {
+                // Cap at 100% or allow overachievement? Usually capped for progress bars, but let's allow it in calculation
+                let progress = (kr.currentValue / kr.targetValue) * 100;
+                // Optional: Cap for UI
+                // progress = Math.min(progress, 100);
+                totalProgress += progress;
+                count++;
+            }
+        });
+
+        return count === 0 ? 0 : Math.round(totalProgress / count);
+    };
+
+    // Calculate Global Stats Recursive
+    const calculateGlobalStats = () => {
+        if (!purpose || !purpose.megas) return { progress: 0, objectives: 0, krs: 0 };
+
+        let totalObjProgress = 0;
+        let objCountForProgress = 0;
+        let totalObjectives = 0;
+        let totalKRs = 0;
+
+        const traverse = (objs: Objective[]) => {
+            objs.forEach(obj => {
+                totalObjectives++;
+                if (obj.keyResults) totalKRs += obj.keyResults.length;
+
+                // Progress logic: Only include if has KRs
+                if (obj.keyResults && obj.keyResults.length > 0) {
+                    totalObjProgress += calculateObjectiveProgress(obj);
+                    objCountForProgress++;
+                }
+
+                if (obj.childObjectives) traverse(obj.childObjectives);
+            });
+        };
+
+        purpose.megas.forEach(mega => {
+            traverse(mega.objectives);
+        });
+
+        const progress = objCountForProgress === 0 ? 0 : Math.round(totalObjProgress / objCountForProgress);
+        return { progress, objectives: totalObjectives, krs: totalKRs };
+    };
+
+    const stats = calculateGlobalStats();
 
     return (
         <div className={styles.container}>
@@ -95,6 +191,48 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                         paddingLeft: '1rem',
                         marginLeft: '0.5rem'
                     }}>{dict.strategy.title}</h1>
+
+                    {/* Unified Stats Container */}
+                    <div style={{ marginLeft: '2rem', display: 'flex', alignItems: 'center', gap: '1.5rem', background: 'rgba(255,255,255,0.6)', padding: '0.4rem 1.2rem', borderRadius: '30px', border: '1px solid rgba(255,255,255,0.8)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+
+                        {/* Global Progress */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div style={{ position: 'relative', width: '42px', height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <svg width="42" height="42" viewBox="0 0 40 40">
+                                    <circle cx="20" cy="20" r="16" fill="none" stroke="#e2e8f0" strokeWidth="4" />
+                                    <circle
+                                        cx="20" cy="20" r="16" fill="none" stroke={theme.color} strokeWidth="4"
+                                        strokeDasharray={`${2 * Math.PI * 16}`}
+                                        strokeDashoffset={`${2 * Math.PI * 16 * (1 - stats.progress / 100)}`}
+                                        strokeLinecap="round"
+                                        transform="rotate(-90 20 20)"
+                                        style={{ transition: 'stroke-dashoffset 1s ease' }}
+                                    />
+                                </svg>
+                                <span style={{ position: 'absolute', fontSize: '0.75rem', fontWeight: 800, color: '#1e293b' }}>{stats.progress}%</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
+                                <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cumplimiento</span>
+                                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>Global</span>
+                            </div>
+                        </div>
+
+                        {/* Divider */}
+                        <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }}></div>
+
+                        {/* Extra Stats */}
+                        <div style={{ display: 'flex', gap: '1.5rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1 }}>
+                                <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1e293b' }}>{stats.objectives}</span>
+                                <span style={{ fontSize: '0.6rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Objetivos</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1 }}>
+                                <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1e293b' }}>{stats.krs}</span>
+                                <span style={{ fontSize: '0.6rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>KRs</span>
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
                 <NavBar />
             </div>
@@ -376,6 +514,60 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                                                                 onSave={async (val) => { await updateObjectiveTitle(obj.id, val); }}
                                                             />
                                                         </div>
+
+                                                        {/* Objective Progress Bar */}
+                                                        <div style={{ paddingRight: '0.5rem', alignSelf: 'center', marginRight: '0.5rem' }}>
+                                                            {(() => {
+                                                                const progress = calculateObjectiveProgress(obj);
+                                                                return (
+                                                                    <div title={`Progreso del Objetivo: ${progress}%`} style={{ width: '60px', height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                                                                        <div style={{
+                                                                            width: `${Math.min(progress, 100)}%`,
+                                                                            height: '100%',
+                                                                            background: progress >= 100 ? '#10b981' : theme.color,
+                                                                            transition: 'width 0.5s ease'
+                                                                        }} />
+                                                                    </div>
+                                                                );
+                                                            })()}
+                                                        </div>
+
+                                                        {/* Owner Selection Mini-UI */}
+                                                        <div style={{ position: 'relative', marginRight: '0.5rem' }}>
+                                                            <select
+                                                                value={obj.owner?.id || ""}
+                                                                onChange={async (e) => {
+                                                                    const newOwnerId = e.target.value === "" ? null : e.target.value;
+                                                                    await updateObjectiveOwner(obj.id, newOwnerId);
+                                                                }}
+                                                                style={{
+                                                                    appearance: 'none',
+                                                                    backgroundColor: obj.owner ? '#e0f2fe' : 'transparent',
+                                                                    border: obj.owner ? '1px solid #7dd3fc' : '1px dashed #cbd5e1',
+                                                                    borderRadius: '20px',
+                                                                    padding: '2px 8px',
+                                                                    paddingRight: '20px',
+                                                                    fontSize: '0.75rem',
+                                                                    color: obj.owner ? '#0369a1' : '#94a3b8',
+                                                                    cursor: 'pointer',
+                                                                    maxWidth: '120px',
+                                                                    whiteSpace: 'nowrap',
+                                                                    overflow: 'hidden',
+                                                                    textOverflow: 'ellipsis',
+                                                                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                                                                    backgroundRepeat: 'no-repeat',
+                                                                    backgroundPosition: 'right 4px center'
+                                                                }}
+                                                                title={obj.owner ? `Responsable actual: ${obj.owner.name}` : "Asignar responsable"}
+                                                            >
+                                                                <option value="">👤 Asignar</option>
+                                                                {tenantUsers.map(u => (
+                                                                    <option key={u.id} value={u.id}>
+                                                                        {u.name} {u.lastName || ''}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        </div>
                                                         <button
                                                             onClick={() => {
                                                                 if (window.confirm("¿Estás seguro de que deseas eliminar este objetivo?")) {
@@ -412,6 +604,45 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                                                                         <div style={{ fontSize: '0.8rem', color: '#475569', fontWeight: 500, lineHeight: '1.3' }}>
                                                                             {kr.statement}
                                                                         </div>
+
+                                                                        {/* KR Owner Selector */}
+                                                                        <div style={{ position: 'relative' }}>
+                                                                            <select
+                                                                                value={kr.owner?.id || ""}
+                                                                                onChange={async (e) => {
+                                                                                    e.stopPropagation(); // Prevent drag/click conflcits
+                                                                                    const newOwnerId = e.target.value === "" ? null : e.target.value;
+                                                                                    await updateKeyResultOwner(kr.id, newOwnerId);
+                                                                                }}
+                                                                                onClick={(e) => e.stopPropagation()}
+                                                                                style={{
+                                                                                    appearance: 'none',
+                                                                                    backgroundColor: kr.owner ? '#e0f2fe' : 'transparent',
+                                                                                    border: kr.owner ? '1px solid #7dd3fc' : '1px dashed #cbd5e1',
+                                                                                    borderRadius: '20px',
+                                                                                    padding: '1px 6px',
+                                                                                    paddingRight: '16px',
+                                                                                    fontSize: '0.65rem',
+                                                                                    color: kr.owner ? '#0369a1' : '#94a3b8',
+                                                                                    cursor: 'pointer',
+                                                                                    maxWidth: '80px',
+                                                                                    whiteSpace: 'nowrap',
+                                                                                    overflow: 'hidden',
+                                                                                    textOverflow: 'ellipsis',
+                                                                                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                                                                                    backgroundRepeat: 'no-repeat',
+                                                                                    backgroundPosition: 'right 2px center'
+                                                                                }}
+                                                                                title={kr.owner ? `Responsable actual: ${kr.owner.name}` : "Asignar responsable"}
+                                                                            >
+                                                                                <option value="">👤</option>
+                                                                                {tenantUsers.map(u => (
+                                                                                    <option key={u.id} value={u.id}>
+                                                                                        {u.name} {u.lastName || ''}
+                                                                                    </option>
+                                                                                ))}
+                                                                            </select>
+                                                                        </div>
                                                                         <div
                                                                             onClick={() => setSelectedKR(kr)}
                                                                             style={{
@@ -429,45 +660,93 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                                                                         >
                                                                             {Math.round((kr.currentValue / kr.targetValue) * 100)}%
                                                                         </div>
-                                                                    </div>
-                                                                    <div
-                                                                        onClick={() => router.push('/strategy/execution')}
-                                                                        title={kr.initiatives && kr.initiatives.length > 0 ? "Ver iniciativas vinculadas" : "Crear primera iniciativa"}
-                                                                        style={{
-                                                                            height: '8px',
-                                                                            background: '#e2e8f0',
-                                                                            borderRadius: '4px',
-                                                                            overflow: 'hidden',
-                                                                            marginTop: '0.5rem',
-                                                                            cursor: 'pointer',
-                                                                            transition: 'all 0.2s',
-                                                                            position: 'relative'
-                                                                        }}
-                                                                        onMouseEnter={(e) => e.currentTarget.style.boxShadow = `0 0 8px ${theme.color}44`}
-                                                                        onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'none'}
-                                                                    >
-                                                                        {kr.initiatives && kr.initiatives.length > 0 ? (
-                                                                            <div style={{
-                                                                                height: '100%',
-                                                                                width: `${Math.round(kr.initiatives.reduce((acc, curr) => acc + (curr.progress || 0), 0) / kr.initiatives.length)}%`,
-                                                                                background: theme.color,
-                                                                                opacity: 0.9
-                                                                            }} />
-                                                                        ) : (
-                                                                            <div style={{
-                                                                                height: '100%',
-                                                                                width: '100%',
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                if (window.confirm("¿Estás seguro de que deseas eliminar este Resultado Clave (KR)?")) {
+                                                                                    deleteKeyResult(kr.id);
+                                                                                }
+                                                                            }}
+                                                                            style={{
+                                                                                background: 'none',
+                                                                                border: 'none',
+                                                                                cursor: 'pointer',
+                                                                                color: '#ef4444',
+                                                                                padding: '0 4px',
+                                                                                opacity: 0.4,
                                                                                 display: 'flex',
-                                                                                alignItems: 'center',
-                                                                                justifyContent: 'center',
-                                                                                fontSize: '0.6rem',
-                                                                                color: '#94a3b8',
-                                                                                fontWeight: 600,
-                                                                                textTransform: 'uppercase'
-                                                                            }}>
-                                                                                + Iniciativas
+                                                                                alignItems: 'center'
+                                                                            }}
+                                                                            onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                                                                            onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.4')}
+                                                                            title="Eliminar KR"
+                                                                        >
+                                                                            <Trash2 size={12} />
+                                                                        </button>
+                                                                    </div>
+                                                                    {/* Dual Progress Bars Container */}
+                                                                    <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+
+                                                                        {/* 1. Intrinsic KR Progress */}
+                                                                        <div
+                                                                            onClick={() => setSelectedKR(kr)}
+                                                                            style={{ cursor: 'pointer' }}
+                                                                            title="Clic para actualizar avance del KR"
+                                                                        >
+                                                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                                                                                <span style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600 }}>Avance KR</span>
+                                                                                <span style={{ fontSize: '0.65rem', color: '#0ea5e9', fontWeight: 700 }}>{Math.round((kr.currentValue / kr.targetValue) * 100)}%</span>
                                                                             </div>
-                                                                        )}
+                                                                            <div style={{ height: '6px', background: '#e0f2fe', borderRadius: '3px', overflow: 'hidden' }}>
+                                                                                <div style={{
+                                                                                    width: `${Math.min((kr.currentValue / kr.targetValue) * 100, 100)}%`,
+                                                                                    height: '100%',
+                                                                                    background: '#0ea5e9',
+                                                                                    borderRadius: '3px',
+                                                                                    transition: 'width 0.5s ease'
+                                                                                }} />
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* 2. Linked Initiatives Progress */}
+                                                                        <div
+                                                                            onClick={() => router.push('/strategy/execution')}
+                                                                            style={{ cursor: 'pointer' }}
+                                                                            title="Clic para ver tablero kanban"
+                                                                        >
+                                                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
+                                                                                <span style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600 }}>Iniciativas</span>
+                                                                                {kr.initiatives && kr.initiatives.length > 0 && (
+                                                                                    <span style={{ fontSize: '0.65rem', color: theme.color, fontWeight: 700 }}>
+                                                                                        {Math.round(kr.initiatives.reduce((acc, curr) => acc + (curr.progress || 0), 0) / kr.initiatives.length)}%
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                            <div style={{
+                                                                                height: kr.initiatives && kr.initiatives.length > 0 ? '6px' : '20px',
+                                                                                background: '#f1f5f9',
+                                                                                borderRadius: '3px',
+                                                                                overflow: 'hidden',
+                                                                                border: '1px solid #e2e8f0',
+                                                                                transition: 'height 0.2s ease'
+                                                                            }}>
+                                                                                {kr.initiatives && kr.initiatives.length > 0 ? (
+                                                                                    <div style={{
+                                                                                        height: '100%',
+                                                                                        width: `${Math.round(kr.initiatives.reduce((acc, curr) => acc + (curr.progress || 0), 0) / kr.initiatives.length)}%`,
+                                                                                        background: theme.color,
+                                                                                        opacity: 0.8,
+                                                                                        borderRadius: '2px',
+                                                                                        transition: 'width 0.5s ease'
+                                                                                    }} />
+                                                                                ) : (
+                                                                                    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                                                                        + Vincular
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+
                                                                     </div>
                                                                 </div>
                                                             ))}

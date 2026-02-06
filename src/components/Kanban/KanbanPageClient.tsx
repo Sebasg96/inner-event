@@ -7,12 +7,13 @@
 // BUT, refactoring `page.tsx` is easier if I just inline the client component or split it.
 // I'll create `src/components/Kanban/KanbanPageClient.tsx`.
 
-// import KanbanBoard from '@/components/Kanban/KanbanBoard';
+import KanbanBoard from '@/components/Kanban/KanbanBoard';
 import NavBar from '@/components/NavBar';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import Link from 'next/link';
 import InitiativeCreator from '@/components/Strategy/InitiativeCreator';
 import React, { useState } from 'react';
+import { updateInitiativeOwner } from '@/app/actions';
 
 
 // Define types
@@ -41,6 +42,7 @@ interface Initiative {
     horizon: string;
     progress?: number;
     owner?: {
+        id?: string; // Add ID
         name: string;
         lastName: string | null;
         area: string | null;
@@ -51,9 +53,10 @@ interface Initiative {
 type Props = {
     initiatives: Initiative[];
     krs: KR[];
+    tenantUsers: any[]; // Ideally typed
 };
 
-export default function KanbanPageClient({ initiatives, krs }: Props) {
+export default function KanbanPageClient({ initiatives, krs, tenantUsers }: Props) {
     const { dict } = useLanguage();
     const [showCreator, setShowCreator] = useState(false);
 
@@ -123,83 +126,111 @@ export default function KanbanPageClient({ initiatives, krs }: Props) {
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem' }}>
                 {initiatives.map((initiative) => (
-                    <Link
-                        href={`/strategy/initiative/${initiative.id}`}
+                    <div
                         key={initiative.id}
-                        style={{ textDecoration: 'none', color: 'inherit' }}
+                        className="glass-panel"
+                        style={{ padding: '1.5rem', transition: 'transform 0.2s', height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }}
                     >
-                        <div className="glass-panel" style={{ padding: '1.5rem', transition: 'transform 0.2s', cursor: 'pointer', height: '100%' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
-                                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 600 }}>{initiative.title}</h3>
-                                <span style={{
-                                    fontSize: '0.7em', padding: '0.2rem 0.5rem', borderRadius: '4px',
-                                    background: initiative.status === 'DONE' ? 'var(--success)' : initiative.status === 'IN_PROGRESS' ? 'var(--warning)' : 'hsl(var(--surface-active))',
-                                    color: '#000'
-                                }}>
-                                    {initiative.status}
-                                </span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
+                            <Link href={`/strategy/initiative/${initiative.id}`} style={{ textDecoration: 'none', color: 'inherit', flex: 1 }}>
+                                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 600, cursor: 'pointer' }} className="hover:text-primary">
+                                    {initiative.title}
+                                </h3>
+                            </Link>
+                            <span style={{
+                                fontSize: '0.75em',
+                                padding: '0.3rem 0.8rem',
+                                borderRadius: '20px',
+                                fontWeight: 700,
+                                letterSpacing: '0.02em',
+                                background: initiative.status === 'DONE' ? 'hsl(var(--success))' :
+                                    initiative.status === 'IN_PROGRESS' ? 'hsl(var(--primary))' :
+                                        '#64748b', // Slate 500 for TODO
+                                color: '#fff', // White text for all
+                                boxShadow: '0 2px 4px rgba(0,0,0,0.1)', // Consistent shadow
+                                whiteSpace: 'nowrap',
+                                marginLeft: '0.5rem',
+                                border: 'none'
+                            }}>
+                                {initiative.status === 'IN_PROGRESS' ? 'En Progreso' :
+                                    initiative.status === 'DONE' ? 'Completado' : 'Por Hacer'}
+                            </span>
+                        </div>
+
+                        <p style={{ fontSize: '0.9rem', color: 'hsl(var(--text-muted))', marginBottom: '1rem' }}>
+                            {initiative.horizon}
+                        </p>
+
+                        {/* Owner Assignment */}
+                        <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>Assignee:</span>
+                            <select
+                                value={initiative.owner?.id || ''}
+                                onChange={async (e) => {
+                                    await updateInitiativeOwner(initiative.id, e.target.value || null);
+                                }}
+                                style={{
+                                    fontSize: '0.8rem',
+                                    padding: '0.2rem',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: '4px',
+                                    background: 'white',
+                                    color: '#334155',
+                                    maxWidth: '150px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                <option value="">Unassigned</option>
+                                {tenantUsers.map(u => (
+                                    <option key={u.id} value={u.id}>
+                                        {u.name} {u.lastName}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Team Assignment */}
+                        {initiative.team && (
+                            <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>Team:</span>
+                                <div style={{ display: 'flex', marginLeft: '0.5rem' }}>
+                                    {initiative.team.members.map((m: TeamMember, idx: number) => (
+                                        <div
+                                            key={idx}
+                                            style={{
+                                                width: '24px', height: '24px', borderRadius: '50%',
+                                                background: m.user.discProfile?.color === 'RED' ? 'var(--danger)' :
+                                                    m.user.discProfile?.color === 'YELLOW' ? 'var(--warning)' :
+                                                        m.user.discProfile?.color === 'GREEN' ? 'var(--success)' :
+                                                            m.user.discProfile?.color === 'BLUE' ? 'var(--accent)' : '#ccc',
+                                                marginLeft: idx > 0 ? '-8px' : 0,
+                                                border: '2px solid rgba(0,0,0,0.2)',
+                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                fontSize: '0.6rem', color: '#fff', fontWeight: 'bold'
+                                            }}
+                                            title={m.user.name}
+                                        >
+                                            {m.user.name.charAt(0)}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
+                        )}
 
-                            <p style={{ fontSize: '0.9rem', color: 'hsl(var(--text-muted))', marginBottom: '1rem' }}>
-                                {initiative.horizon}
-                            </p>
-
-                            {/* Owner Assignment */}
-                            {initiative.owner && (
-                                <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>👤 Responsable:</span>
-                                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--primary)' }}>
-                                        {initiative.owner.name} {initiative.owner.lastName || ''}
-                                    </span>
-                                    {initiative.owner.area && (
-                                        <span style={{ fontSize: '0.7rem', opacity: 0.5 }}>({initiative.owner.area})</span>
-                                    )}
-                                </div>
-                            )}
-
-                            {/* Team Assignment */}
-                            {initiative.team && (
-                                <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>Team:</span>
-                                    <div style={{ display: 'flex', marginLeft: '0.5rem' }}>
-                                        {initiative.team.members.map((m: TeamMember, idx: number) => (
-                                            <div
-                                                key={idx}
-                                                style={{
-                                                    width: '24px', height: '24px', borderRadius: '50%',
-                                                    background: m.user.discProfile?.color === 'RED' ? 'var(--danger)' :
-                                                        m.user.discProfile?.color === 'YELLOW' ? 'var(--warning)' :
-                                                            m.user.discProfile?.color === 'GREEN' ? 'var(--success)' :
-                                                                m.user.discProfile?.color === 'BLUE' ? 'var(--accent)' : '#ccc',
-                                                    marginLeft: idx > 0 ? '-8px' : 0,
-                                                    border: '2px solid rgba(0,0,0,0.2)',
-                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                    fontSize: '0.6rem', color: '#fff', fontWeight: 'bold'
-                                                }}
-                                                title={m.user.name}
-                                            >
-                                                {m.user.name.charAt(0)}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            <div style={{ marginTop: 'auto' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.5rem' }}>
-                                    <span>Progress</span>
-                                    <span>{Math.round(initiative.progress || 0)}%</span>
-                                </div>
-                                <div style={{ width: '100%', height: '6px', background: 'hsl(var(--surface-active))', borderRadius: '3px', overflow: 'hidden' }}>
-                                    <div style={{
-                                        width: `${initiative.progress || 0}%`, height: '100%',
-                                        background: 'linear-gradient(90deg, var(--primary), var(--accent))',
-                                        transition: 'width 0.5s ease'
-                                    }} />
-                                </div>
+                        <div style={{ marginTop: 'auto' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '0.5rem' }}>
+                                <span>Progress</span>
+                                <span>{Math.round(initiative.progress || 0)}%</span>
+                            </div>
+                            <div style={{ width: '100%', height: '6px', background: 'hsl(var(--surface-active))', borderRadius: '3px', overflow: 'hidden' }}>
+                                <div style={{
+                                    width: `${initiative.progress || 0}%`, height: '100%',
+                                    background: 'linear-gradient(90deg, var(--primary), var(--accent))',
+                                    transition: 'width 0.5s ease'
+                                }} />
                             </div>
                         </div>
-                    </Link>
+                    </div>
                 ))}
             </div>
         </main>

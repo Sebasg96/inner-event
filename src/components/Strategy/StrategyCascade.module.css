@@ -190,6 +190,8 @@
     display: flex;
     gap: 3px;
     margin-top: 0.25rem;
+    flex-wrap: wrap;
+    /* Ensure they wrap if many */
 }
 
 .krDot {

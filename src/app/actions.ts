@@ -265,6 +265,7 @@ export async function createKeyResult(formData: FormData) {
     const metricUnit = formData.get('metricUnit') as string;
     const objectiveId = formData.get('objectiveId') as string;
     const trackingType = formData.get('trackingType') as any;
+    const updatePeriodicity = formData.get('updatePeriodicity') as any;
 
     await prisma.keyResult.create({
         data: { 
@@ -273,7 +274,8 @@ export async function createKeyResult(formData: FormData) {
             metricUnit, 
             objectiveId, 
             tenantId,
-            trackingType: trackingType || 'PERCENTAGE'
+            trackingType: trackingType || 'PERCENTAGE',
+            updatePeriodicity: updatePeriodicity || null
         },
     });
     revalidatePath('/strategy');
@@ -544,6 +546,16 @@ export async function updateObjectiveTitle(objectiveId: string, newTitle: string
     revalidatePath('/');
 }
 
+export async function updateObjectiveOwner(objectiveId: string, ownerId: string | null) {
+    const tenantId = await getTenantId();
+    await prisma.objective.update({
+        where: { id: objectiveId },
+        data: { ownerId }
+    });
+    revalidatePath('/strategy');
+    revalidatePath('/');
+}
+
 export async function deleteMega(id: string) {
     try {
         await prisma.$transaction(async (tx) => {
@@ -809,4 +821,107 @@ export async function getStrategicAccess(entityType: 'purpose' | 'objective' | '
     });
 
     return accesses;
+}
+
+export async function updateKeyResultOwner(keyResultId: string, ownerId: string | null) {
+    const tenantId = await getTenantId();
+    await prisma.keyResult.update({
+        where: { id: keyResultId },
+        data: { ownerId }
+    });
+    revalidatePath('/strategy');
+    revalidatePath('/');
+}
+
+export async function getUserNotifications() {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) return [];
+
+    // Find Prisma user
+    const dbUser = await prisma.user.findUnique({
+        where: { email: user.email },
+        select: { id: true }
+    });
+
+    if (!dbUser) return [];
+
+    // Fetch KRs owned by user with periodicity set
+    const krs = await prisma.keyResult.findMany({
+        where: {
+            ownerId: dbUser.id,
+            updatePeriodicity: { not: null }
+        },
+        select: {
+            id: true,
+            statement: true,
+            updatedAt: true,
+            updatePeriodicity: true,
+            objective: {
+                select: {
+                    statement: true
+                }
+            }
+        }
+    });
+
+    const now = new Date();
+    const notifications = krs.filter(kr => {
+        if (!kr.updatePeriodicity) return false;
+
+        const lastUpdate = new Date(kr.updatedAt);
+        let dueDate = new Date(lastUpdate);
+
+        switch (kr.updatePeriodicity) {
+            case 'DAILY':
+                dueDate.setDate(dueDate.getDate() + 1);
+                break;
+            case 'WEEKLY':
+                dueDate.setDate(dueDate.getDate() + 7);
+                break;
+            case 'BIWEEKLY':
+                dueDate.setDate(dueDate.getDate() + 15);
+                break;
+            case 'MONTHLY':
+                dueDate.setMonth(dueDate.getMonth() + 1);
+                break;
+            case 'QUARTERLY':
+                dueDate.setMonth(dueDate.getMonth() + 3);
+                break;
+            case 'YEARLY':
+                dueDate.setFullYear(dueDate.getFullYear() + 1);
+                break;
+        }
+
+        // Return true if dueDate is in the past (Overdue)
+        return dueDate < now;
+    }).map(kr => ({
+        id: kr.id,
+        title: kr.statement,
+        objectiveTitle: kr.objective.statement,
+        daysOverdue: Math.floor((now.getTime() - new Date(kr.updatedAt).getTime()) / (1000 * 3600 * 24))
+    }));
+
+    return notifications;
+}
+
+export async function updateKeyResultPeriodicity(keyResultId: string, periodicity: any) {
+    if (!periodicity) return;
+    
+    await prisma.keyResult.update({
+        where: { id: keyResultId },
+        data: { updatePeriodicity: periodicity }
+    });
+    revalidatePath('/strategy');
+    revalidatePath('/');
+}
+
+export async function updateInitiativeOwner(initiativeId: string, ownerId: string | null) {
+    const tenantId = await getTenantId();
+    await prisma.initiative.update({
+        where: { id: initiativeId, tenantId },
+        data: { ownerId }
+    });
+    revalidatePath('/strategy/execution');
 }
