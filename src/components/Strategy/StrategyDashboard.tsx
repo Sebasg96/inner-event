@@ -322,16 +322,46 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                     {/* Cascade Tree inserted here to be top-level content after header */}
                     <StrategyCascade purpose={purpose as any} />
 
-                    {/* Purpose Section */}
-                    <section className={`glass-panel ${styles.section}`} style={{ border: theme.border, boxShadow: theme.glow }}>
-                        <h2 className={styles.sectionTitle} style={{ color: theme.color }}>PROPÓSITO</h2>
+                    {/* Purpose Section - Pragma Style */}
+                    <section
+                        className={styles.section}
+                        style={{
+                            background: '#ffffff',
+                            borderRadius: '16px',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
+                            padding: '2rem',
+                            marginTop: '2rem',
+                            borderLeft: `6px solid ${theme.color}`,
+                            position: 'relative',
+                            overflow: 'hidden'
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem', gap: '0.75rem' }}>
+                            <div style={{
+                                background: `${theme.color}15`,
+                                padding: '0.5rem',
+                                borderRadius: '8px',
+                                color: theme.color
+                            }}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
+                            </div>
+                            <h2 className={styles.sectionTitle} style={{ color: '#0f172a', marginBottom: 0, fontSize: '1.5rem', letterSpacing: '-0.5px' }}>PROPÓSITO</h2>
+                        </div>
+
                         {purpose ? (
-                            <div className={styles.purposeDisplay} style={{ fontSize: '1.5rem', fontWeight: 500 }}>
+                            <div className={styles.purposeDisplay} style={{ fontSize: '1.25rem', fontWeight: 500, lineHeight: 1.6 }}>
                                 <EditableText
                                     initialValue={purpose.statement}
                                     onSave={async (val) => { await updatePurpose(purpose.id, val); }}
-                                    style={{ color: 'hsl(var(--text-main))', background: 'rgba(0,0,0,0.03)' }}
+                                    style={{
+                                        color: '#334155',
+                                        background: 'transparent',
+                                        padding: '0.5rem',
+                                        border: '1px solid transparent'
+                                    }}
+                                    className="white-surface"
                                     data-testid="strategy-purpose-input"
+                                    required={true}
                                 />
                             </div>
                         ) : (
@@ -339,33 +369,50 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                                 <input
                                     name="statement"
                                     placeholder={dict.strategy.purpose.placeholder}
-                                    style={{ flex: 1 }}
+                                    style={{ flex: 1, background: '#f1f5f9', border: '1px solid #cbd5e1', color: '#334155' }}
                                     required
                                     data-testid="strategy-purpose-new-input"
                                 />
-                                <button type="submit" className="btn-primary" data-testid="strategy-purpose-submit">
-                                    {dict.strategy.purpose.button}
+                                <button
+                                    type="submit"
+                                    data-testid="strategy-purpose-submit"
+                                    style={{
+                                        background: theme.color,
+                                        color: 'white',
+                                        border: 'none',
+                                        padding: '0.7rem 1.2rem',
+                                        borderRadius: '8px',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        fontSize: '0.85rem',
+                                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                                    }}
+                                >
+                                    Fijar propósito
                                 </button>
                             </form>
                         )}
 
                         {/* Secondary Action: Enable Area Purpose */}
                         {!showAreaPurpose && (
-                            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center' }}>
+                            <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-start' }}>
                                 <button
                                     onClick={() => setShowAreaPurpose(true)}
                                     style={{
                                         background: 'transparent',
-                                        border: '1px dashed #cbd5e1',
-                                        borderRadius: '20px',
+                                        border: '1px solid #e2e8f0',
+                                        borderRadius: '8px',
                                         padding: '0.5rem 1rem',
                                         color: '#64748b',
                                         fontSize: '0.85rem',
                                         cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: '0.5rem'
+                                        gap: '0.5rem',
+                                        transition: 'all 0.2s'
                                     }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = theme.color; e.currentTarget.style.color = theme.color; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#64748b'; }}
                                     data-testid="strategy-add-area-purpose-btn"
                                 >
                                     <span>+</span> Agregar Propósito de Área
@@ -595,112 +642,117 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                                                             flexDirection: 'column',
                                                             height: '100%'
                                                         }}>
-                                                            <div className={styles.objectiveTitle} style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1.2rem', color: '#1e293b', display: 'flex', gap: '0.75rem', alignItems: 'flex-start' }}>
-                                                                <span style={{ color: theme.color, opacity: 0.8, fontSize: '0.75rem', whiteSpace: 'nowrap', marginTop: '0.2rem' }}>#{j + 1}</span>
-                                                                <div style={{ flex: 1 }}>
-                                                                    <EditableText
-                                                                        initialValue={obj.statement}
-                                                                        onSave={async (val) => { await updateObjectiveTitle(obj.id, val); }}
-                                                                    />
+                                                            <div className={styles.objectiveTitle} style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1.2rem', color: '#1e293b', display: 'flex', gap: '0.75rem', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+
+                                                                {/* Title Section (Flex Grow) */}
+                                                                <div style={{ display: 'flex', gap: '0.5rem', flex: '1 1 300px', minWidth: 0 }}>
+                                                                    <span style={{ color: theme.color, opacity: 0.8, fontSize: '0.75rem', whiteSpace: 'nowrap', marginTop: '0.2rem' }}>#{j + 1}</span>
+                                                                    <div style={{ flex: 1 }}>
+                                                                        <EditableText
+                                                                            initialValue={obj.statement}
+                                                                            onSave={async (val) => { await updateObjectiveTitle(obj.id, val); }}
+                                                                        />
+                                                                    </div>
                                                                 </div>
 
-                                                                {/* Expansion Toggle */}
-                                                                <button
-                                                                    onClick={() => toggleObjective(obj.id)}
-                                                                    style={{
-                                                                        background: 'none',
-                                                                        border: 'none',
-                                                                        cursor: 'pointer',
-                                                                        color: theme.color,
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        gap: '4px',
-                                                                        padding: '4px 8px',
-                                                                        borderRadius: '4px',
-                                                                        backgroundColor: `${theme.color}08`,
-                                                                        fontSize: '0.75rem',
-                                                                        fontWeight: 600,
-                                                                        transition: 'all 0.2s ease'
-                                                                    }}
-                                                                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = `${theme.color}15`)}
-                                                                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = `${theme.color}08`)}
-                                                                >
-                                                                    <span>{expandedObjectives[obj.id] ? 'Ocultar KRs' : 'Ver KRs'}</span>
-                                                                    {expandedObjectives[obj.id] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                                                </button>
+                                                                {/* Controls Section (Keeps together) */}
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', alignSelf: 'flex-start', marginTop: '0.1rem' }}>
+                                                                    {/* Expansion Toggle */}
+                                                                    <button
+                                                                        onClick={() => toggleObjective(obj.id)}
+                                                                        style={{
+                                                                            background: 'none',
+                                                                            border: 'none',
+                                                                            cursor: 'pointer',
+                                                                            color: theme.color,
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '4px',
+                                                                            padding: '4px 8px',
+                                                                            borderRadius: '4px',
+                                                                            backgroundColor: `${theme.color}08`,
+                                                                            fontSize: '0.75rem',
+                                                                            fontWeight: 600,
+                                                                            transition: 'all 0.2s ease'
+                                                                        }}
+                                                                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = `${theme.color}15`)}
+                                                                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = `${theme.color}08`)}
+                                                                    >
+                                                                        <span>{expandedObjectives[obj.id] ? 'Ocultar KRs' : 'Ver KRs'}</span>
+                                                                        {expandedObjectives[obj.id] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                                                                    </button>
 
-                                                                {/* Objective Progress Bar */}
-                                                                <div style={{ paddingRight: '0.5rem', alignSelf: 'center', marginLeft: '0.5rem' }}>
-                                                                    {(() => {
-                                                                        const progress = calculateObjectiveProgress(obj);
-                                                                        return (
-                                                                            <div title={`Progreso del Objetivo: ${progress}%`} style={{ width: '50px', height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                                                                    {/* Objective Progress Bar */}
+                                                                    <div style={{ width: '50px', height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                                                                        {(() => {
+                                                                            const progress = calculateObjectiveProgress(obj);
+                                                                            return (
                                                                                 <div style={{
                                                                                     width: `${Math.min(progress, 100)}%`,
                                                                                     height: '100%',
                                                                                     background: progress >= 100 ? '#10b981' : theme.color,
                                                                                     transition: 'width 0.5s ease'
-                                                                                }} />
-                                                                            </div>
-                                                                        );
-                                                                    })()}
-                                                                </div>
+                                                                                }} title={`Progreso: ${progress}%`} />
+                                                                            );
+                                                                        })()}
+                                                                    </div>
 
-                                                                {/* Owner Selection Mini-UI */}
-                                                                <div style={{ position: 'relative', marginRight: '0.5rem' }}>
-                                                                    <select
-                                                                        value={obj.owner?.id || ""}
-                                                                        onChange={async (e) => {
-                                                                            const newOwnerId = e.target.value === "" ? null : e.target.value;
-                                                                            await updateObjectiveOwner(obj.id, newOwnerId);
+                                                                    {/* Owner Selection Mini-UI */}
+                                                                    <div style={{ position: 'relative' }}>
+                                                                        <select
+                                                                            value={obj.owner?.id || ""}
+                                                                            onChange={async (e) => {
+                                                                                const newOwnerId = e.target.value === "" ? null : e.target.value;
+                                                                                await updateObjectiveOwner(obj.id, newOwnerId);
+                                                                            }}
+                                                                            style={{
+                                                                                appearance: 'none',
+                                                                                backgroundColor: obj.owner ? '#e0f2fe' : 'transparent',
+                                                                                border: obj.owner ? '1px solid #7dd3fc' : '1px dashed #cbd5e1',
+                                                                                borderRadius: '20px',
+                                                                                padding: '2px 8px',
+                                                                                paddingRight: '20px',
+                                                                                fontSize: '0.75rem',
+                                                                                color: obj.owner ? '#0369a1' : '#94a3b8',
+                                                                                cursor: 'pointer',
+                                                                                maxWidth: '120px',
+                                                                                whiteSpace: 'nowrap',
+                                                                                overflow: 'hidden',
+                                                                                textOverflow: 'ellipsis',
+                                                                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                                                                                backgroundRepeat: 'no-repeat',
+                                                                                backgroundPosition: 'right 4px center'
+                                                                            }}
+                                                                            title={obj.owner ? `Responsable actual: ${obj.owner.name}` : "Asignar responsable"}
+                                                                        >
+                                                                            <option value="">👤 Asignar</option>
+                                                                            {tenantUsers.map(u => (
+                                                                                <option key={u.id} value={u.id}>
+                                                                                    {u.name} {u.lastName || ''}
+                                                                                </option>
+                                                                            ))}
+                                                                        </select>
+                                                                    </div>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            if (window.confirm("¿Estás seguro de que deseas eliminar este objetivo?")) {
+                                                                                deleteObjective(obj.id);
+                                                                            }
                                                                         }}
                                                                         style={{
-                                                                            appearance: 'none',
-                                                                            backgroundColor: obj.owner ? '#e0f2fe' : 'transparent',
-                                                                            border: obj.owner ? '1px solid #7dd3fc' : '1px dashed #cbd5e1',
-                                                                            borderRadius: '20px',
-                                                                            padding: '2px 8px',
-                                                                            paddingRight: '20px',
-                                                                            fontSize: '0.75rem',
-                                                                            color: obj.owner ? '#0369a1' : '#94a3b8',
+                                                                            background: 'none',
+                                                                            border: 'none',
                                                                             cursor: 'pointer',
-                                                                            maxWidth: '120px',
-                                                                            whiteSpace: 'nowrap',
-                                                                            overflow: 'hidden',
-                                                                            textOverflow: 'ellipsis',
-                                                                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
-                                                                            backgroundRepeat: 'no-repeat',
-                                                                            backgroundPosition: 'right 4px center'
+                                                                            color: '#ef4444',
+                                                                            opacity: 0.4,
+                                                                            padding: '2px'
                                                                         }}
-                                                                        title={obj.owner ? `Responsable actual: ${obj.owner.name}` : "Asignar responsable"}
+                                                                        onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                                                                        onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.4')}
                                                                     >
-                                                                        <option value="">👤 Asignar</option>
-                                                                        {tenantUsers.map(u => (
-                                                                            <option key={u.id} value={u.id}>
-                                                                                {u.name} {u.lastName || ''}
-                                                                            </option>
-                                                                        ))}
-                                                                    </select>
+                                                                        <Trash2 size={14} />
+                                                                    </button>
                                                                 </div>
-                                                                <button
-                                                                    onClick={() => {
-                                                                        if (window.confirm("¿Estás seguro de que deseas eliminar este objetivo?")) {
-                                                                            deleteObjective(obj.id);
-                                                                        }
-                                                                    }}
-                                                                    style={{
-                                                                        background: 'none',
-                                                                        border: 'none',
-                                                                        cursor: 'pointer',
-                                                                        color: '#ef4444',
-                                                                        opacity: 0.4,
-                                                                        padding: '2px'
-                                                                    }}
-                                                                    onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-                                                                    onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.4')}
-                                                                >
-                                                                    <Trash2 size={14} />
-                                                                </button>
                                                             </div>
 
                                                             <div style={{ flex: 1, display: expandedObjectives[obj.id] ? 'block' : 'none' }}>
@@ -714,89 +766,92 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                                                                             border: '1px solid #e2e8f0',
                                                                             marginBottom: '0.5rem'
                                                                         }}>
-                                                                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                                                                <div style={{ fontSize: '0.8rem', color: '#475569', fontWeight: 500, lineHeight: '1.3' }}>
+                                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                                                                                <div style={{ flex: 1, minWidth: 0, fontSize: '0.8rem', color: '#475569', fontWeight: 500, lineHeight: '1.4' }}>
                                                                                     {kr.statement}
                                                                                 </div>
 
-                                                                                {/* KR Owner Selector */}
-                                                                                <div style={{ position: 'relative' }}>
-                                                                                    <select
-                                                                                        value={kr.owner?.id || ""}
-                                                                                        onChange={async (e) => {
-                                                                                            e.stopPropagation(); // Prevent drag/click conflcits
-                                                                                            const newOwnerId = e.target.value === "" ? null : e.target.value;
-                                                                                            await updateKeyResultOwner(kr.id, newOwnerId);
-                                                                                        }}
-                                                                                        onClick={(e) => e.stopPropagation()}
+                                                                                {/* KR Controls Group */}
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                                                                                    {/* KR Owner Selector */}
+                                                                                    <div style={{ position: 'relative' }}>
+                                                                                        <select
+                                                                                            value={kr.owner?.id || ""}
+                                                                                            onChange={async (e) => {
+                                                                                                e.stopPropagation(); // Prevent drag/click conflcits
+                                                                                                const newOwnerId = e.target.value === "" ? null : e.target.value;
+                                                                                                await updateKeyResultOwner(kr.id, newOwnerId);
+                                                                                            }}
+                                                                                            onClick={(e) => e.stopPropagation()}
+                                                                                            style={{
+                                                                                                appearance: 'none',
+                                                                                                backgroundColor: kr.owner ? '#e0f2fe' : 'transparent',
+                                                                                                border: kr.owner ? '1px solid #7dd3fc' : '1px dashed #cbd5e1',
+                                                                                                borderRadius: '20px',
+                                                                                                padding: '1px 6px',
+                                                                                                paddingRight: '16px',
+                                                                                                fontSize: '0.65rem',
+                                                                                                color: kr.owner ? '#0369a1' : '#94a3b8',
+                                                                                                cursor: 'pointer',
+                                                                                                maxWidth: '80px',
+                                                                                                whiteSpace: 'nowrap',
+                                                                                                overflow: 'hidden',
+                                                                                                textOverflow: 'ellipsis',
+                                                                                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                                                                                                backgroundRepeat: 'no-repeat',
+                                                                                                backgroundPosition: 'right 2px center'
+                                                                                            }}
+                                                                                            title={kr.owner ? `Responsable actual: ${kr.owner.name}` : "Asignar responsable"}
+                                                                                        >
+                                                                                            <option value="">👤</option>
+                                                                                            {tenantUsers.map(u => (
+                                                                                                <option key={u.id} value={u.id}>
+                                                                                                    {u.name} {u.lastName || ''}
+                                                                                                </option>
+                                                                                            ))}
+                                                                                        </select>
+                                                                                    </div>
+                                                                                    <div
+                                                                                        onClick={() => setSelectedKR(kr)}
                                                                                         style={{
-                                                                                            appearance: 'none',
-                                                                                            backgroundColor: kr.owner ? '#e0f2fe' : 'transparent',
-                                                                                            border: kr.owner ? '1px solid #7dd3fc' : '1px dashed #cbd5e1',
-                                                                                            borderRadius: '20px',
-                                                                                            padding: '1px 6px',
-                                                                                            paddingRight: '16px',
-                                                                                            fontSize: '0.65rem',
-                                                                                            color: kr.owner ? '#0369a1' : '#94a3b8',
+                                                                                            fontSize: '0.7rem',
+                                                                                            fontWeight: 700,
+                                                                                            color: theme.color,
+                                                                                            background: 'white',
+                                                                                            padding: '2px 6px',
+                                                                                            borderRadius: '4px',
+                                                                                            border: '1px solid #e2e8f0',
                                                                                             cursor: 'pointer',
-                                                                                            maxWidth: '80px',
                                                                                             whiteSpace: 'nowrap',
-                                                                                            overflow: 'hidden',
-                                                                                            textOverflow: 'ellipsis',
-                                                                                            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
-                                                                                            backgroundRepeat: 'no-repeat',
-                                                                                            backgroundPosition: 'right 2px center'
+                                                                                            height: 'fit-content'
                                                                                         }}
-                                                                                        title={kr.owner ? `Responsable actual: ${kr.owner.name}` : "Asignar responsable"}
                                                                                     >
-                                                                                        <option value="">👤</option>
-                                                                                        {tenantUsers.map(u => (
-                                                                                            <option key={u.id} value={u.id}>
-                                                                                                {u.name} {u.lastName || ''}
-                                                                                            </option>
-                                                                                        ))}
-                                                                                    </select>
+                                                                                        {Math.round((kr.currentValue / kr.targetValue) * 100)}%
+                                                                                    </div>
+                                                                                    <button
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            if (window.confirm("¿Estás seguro de que deseas eliminar este Resultado Clave (KR)?")) {
+                                                                                                deleteKeyResult(kr.id);
+                                                                                            }
+                                                                                        }}
+                                                                                        style={{
+                                                                                            background: 'none',
+                                                                                            border: 'none',
+                                                                                            cursor: 'pointer',
+                                                                                            color: '#ef4444',
+                                                                                            padding: '0 4px',
+                                                                                            opacity: 0.4,
+                                                                                            display: 'flex',
+                                                                                            alignItems: 'center'
+                                                                                        }}
+                                                                                        onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                                                                                        onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.4')}
+                                                                                        title="Eliminar KR"
+                                                                                    >
+                                                                                        <Trash2 size={12} />
+                                                                                    </button>
                                                                                 </div>
-                                                                                <div
-                                                                                    onClick={() => setSelectedKR(kr)}
-                                                                                    style={{
-                                                                                        fontSize: '0.7rem',
-                                                                                        fontWeight: 700,
-                                                                                        color: theme.color,
-                                                                                        background: 'white',
-                                                                                        padding: '2px 6px',
-                                                                                        borderRadius: '4px',
-                                                                                        border: '1px solid #e2e8f0',
-                                                                                        cursor: 'pointer',
-                                                                                        whiteSpace: 'nowrap',
-                                                                                        height: 'fit-content'
-                                                                                    }}
-                                                                                >
-                                                                                    {Math.round((kr.currentValue / kr.targetValue) * 100)}%
-                                                                                </div>
-                                                                                <button
-                                                                                    onClick={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        if (window.confirm("¿Estás seguro de que deseas eliminar este Resultado Clave (KR)?")) {
-                                                                                            deleteKeyResult(kr.id);
-                                                                                        }
-                                                                                    }}
-                                                                                    style={{
-                                                                                        background: 'none',
-                                                                                        border: 'none',
-                                                                                        cursor: 'pointer',
-                                                                                        color: '#ef4444',
-                                                                                        padding: '0 4px',
-                                                                                        opacity: 0.4,
-                                                                                        display: 'flex',
-                                                                                        alignItems: 'center'
-                                                                                    }}
-                                                                                    onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-                                                                                    onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.4')}
-                                                                                    title="Eliminar KR"
-                                                                                >
-                                                                                    <Trash2 size={12} />
-                                                                                </button>
                                                                             </div>
                                                                             {/* Dual Progress Bars Container */}
                                                                             <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -865,7 +920,7 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                                                                         </div>
                                                                     ))}
                                                                 </div>
-                                                                <KeyResultCreator objectiveId={obj.id} />
+                                                                <KeyResultCreator objectiveId={obj.id} megaDeadline={mega.deadline} />
                                                             </div>
                                                         </div>
                                                     ))}

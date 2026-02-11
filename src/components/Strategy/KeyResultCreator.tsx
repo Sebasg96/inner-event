@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { createKeyResult } from '@/app/actions';
 import styles from '@/app/strategy/page.module.css';
 
-export default function KeyResultCreator({ objectiveId }: { objectiveId: string }) {
+export default function KeyResultCreator({ objectiveId, megaDeadline }: { objectiveId: string, megaDeadline?: Date | string }) {
     const [isOpen, setIsOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [trackingType, setTrackingType] = useState<'PERCENTAGE' | 'UNITS'>('PERCENTAGE');
@@ -47,6 +47,23 @@ export default function KeyResultCreator({ objectiveId }: { objectiveId: string 
         }
     };
 
+
+    // Calculate year range based on Mega Deadline or default
+    const currentYear = new Date().getFullYear();
+    let minYear = currentYear;
+    let maxYear = currentYear + 5;
+
+    if (megaDeadline) {
+        const deadlineYear = new Date(megaDeadline).getFullYear();
+        maxYear = deadlineYear;
+        // Check if deadline is in the past relative to current year, extend range backwards if needed
+        if (maxYear < minYear) {
+            minYear = maxYear;
+        }
+    }
+
+    const years = Array.from({ length: maxYear - minYear + 1 }, (_, i) => minYear + i);
+
     return (
         <div style={{ background: 'white', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
@@ -62,12 +79,47 @@ export default function KeyResultCreator({ objectiveId }: { objectiveId: string 
 
             <form
                 action={async (formData) => {
+                    // Validation: Check dates against Mega Deadline & Start Date
+                    if (megaDeadline) {
+                        const startYear = parseInt(formData.get('startYear') as string);
+                        const startQuarter = parseInt(formData.get('startQuarter') as string);
+                        const endYear = parseInt(formData.get('endYear') as string);
+                        const endQuarter = parseInt(formData.get('endQuarter') as string);
+
+                        // 1. Validate End Date vs Start Date
+                        if (startYear && startQuarter && endYear && endQuarter) {
+                            if (endYear < startYear || (endYear === startYear && endQuarter < startQuarter)) {
+                                alert(`La fecha fin (${endYear} Q${endQuarter}) no puede ser anterior a la fecha inicio (${startYear} Q${startQuarter}).`);
+                                return;
+                            }
+                        }
+
+                        // 2. Validate End Date vs Mega Deadline
+                        if (endYear && endQuarter) {
+                            const deadlineDate = new Date(megaDeadline);
+                            const deadlineYear = deadlineDate.getFullYear();
+                            const deadlineMonth = deadlineDate.getUTCMonth(); // 0-11
+                            const deadlineQuarter = Math.floor(deadlineMonth / 3) + 1;
+
+                            if (endYear > deadlineYear || (endYear === deadlineYear && endQuarter > deadlineQuarter)) {
+                                alert(`La fecha fin del KR (${endYear} Q${endQuarter}) no puede ser posterior a la fecha límite de la Mega (${deadlineYear} Q${deadlineQuarter}).`);
+                                return;
+                            }
+                        }
+                    }
+
                     setIsSaving(true);
-                    await createKeyResult(formData);
-                    setIsSaving(false);
-                    setIsOpen(false);
-                    // Dispatch event to update NotificationBell
-                    window.dispatchEvent(new Event('kr-updated'));
+                    try {
+                        await createKeyResult(formData);
+                        setIsOpen(false);
+                        // Dispatch event to update NotificationBell
+                        window.dispatchEvent(new Event('kr-updated'));
+                    } catch (error) {
+                        console.error('Error creating KR:', error);
+                        alert('Error al crear el KR. Por favor, intenta de nuevo.');
+                    } finally {
+                        setIsSaving(false);
+                    }
                 }}
                 style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '1rem' }}
             >
@@ -128,7 +180,7 @@ export default function KeyResultCreator({ objectiveId }: { objectiveId: string 
                         />
                     </div>
                     <div style={{ flex: '1 1 30%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>PERIOCIDAD</label>
+                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>FRECUENCIA DE ACTUALIZACIÓN</label>
                         <select
                             name="updatePeriodicity"
                             style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.6rem', fontSize: '0.9rem', color: 'black', background: 'white', outline: 'none' }}
@@ -140,6 +192,53 @@ export default function KeyResultCreator({ objectiveId }: { objectiveId: string 
                             <option value="MONTHLY">Mensual</option>
                             <option value="QUARTERLY">Trimestral</option>
                             <option value="YEARLY">Anual</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+                    <div style={{ flex: '1 1 22%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>AÑO INICIO</label>
+                        <select
+                            name="startYear"
+                            style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.6rem', fontSize: '0.9rem', color: 'black', background: 'white', outline: 'none' }}
+                        >
+                            <option value="">(Opcional)</option>
+                            {years.map(y => (
+                                <option key={y} value={y}>{y}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div style={{ flex: '1 1 22%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>Q INICIO</label>
+                        <select
+                            name="startQuarter"
+                            style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.6rem', fontSize: '0.9rem', color: 'black', background: 'white', outline: 'none' }}
+                        >
+                            <option value="">(Opcional)</option>
+                            {[1, 2, 3, 4].map(q => <option key={q} value={q}>Q{q}</option>)}
+                        </select>
+                    </div>
+                    <div style={{ flex: '1 1 22%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>AÑO FIN</label>
+                        <select
+                            name="endYear"
+                            style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.6rem', fontSize: '0.9rem', color: 'black', background: 'white', outline: 'none' }}
+                        >
+                            <option value="">(Opcional)</option>
+                            {years.map(y => (
+                                <option key={y} value={y}>{y}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div style={{ flex: '1 1 22%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>Q FIN</label>
+                        <select
+                            name="endQuarter"
+                            style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.6rem', fontSize: '0.9rem', color: 'black', background: 'white', outline: 'none' }}
+                        >
+                            <option value="">(Opcional)</option>
+                            {[1, 2, 3, 4].map(q => <option key={q} value={q}>Q{q}</option>)}
                         </select>
                     </div>
                 </div>

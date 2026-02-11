@@ -283,6 +283,11 @@ export async function createKeyResult(formData: FormData) {
     const trackingType = formData.get('trackingType') as any;
     const updatePeriodicity = formData.get('updatePeriodicity') as any;
 
+    const startYear = formData.get('startYear') ? parseInt(formData.get('startYear') as string) : null;
+    const startQuarter = formData.get('startQuarter') ? parseInt(formData.get('startQuarter') as string) : null;
+    const endYear = formData.get('endYear') ? parseInt(formData.get('endYear') as string) : null;
+    const endQuarter = formData.get('endQuarter') ? parseInt(formData.get('endQuarter') as string) : null;
+
     await prisma.keyResult.create({
         data: { 
             statement, 
@@ -293,7 +298,11 @@ export async function createKeyResult(formData: FormData) {
             trackingType: trackingType || 'PERCENTAGE',
             updatePeriodicity: updatePeriodicity || null,
             weight: 0,
-            ownerId: ownerId // Assign owner
+            ownerId: ownerId, // Assign owner
+            startYear,
+            startQuarter,
+            endYear,
+            endQuarter
         },
     });
     revalidatePath('/strategy');

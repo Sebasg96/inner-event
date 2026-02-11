@@ -157,7 +157,6 @@ export default function LoginPage() {
                             name="password"
                             type="password"
                             required
-                            defaultValue="12345"
                             className={styles.input}
                             data-testid="auth-login-password-input"
                             style={{
@@ -217,15 +216,7 @@ export default function LoginPage() {
                     </div>
                 </form>
 
-                {/* Test Credentials Overlay - Discreto */}
-                <div style={{ marginTop: '2.5rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.05)', fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center' }}>
-                    <p style={{ marginBottom: '0.5rem', fontWeight: 600 }}>ACCESO DE PRUEBA (SUPABASE)</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                        <code>oscar.gomez@ikusi.com</code>
-                        <code>test@pragma.com</code>
-                        <code>Password: password123</code>
-                    </div>
-                </div>
+
             </motion.div>
         </div>
     );

@@ -259,6 +259,12 @@ model KeyResult {
   updatePeriodicity UpdatePeriodicity?
   weight            Float             @default(1.0)
 
+  // Periodicity
+  startYear    Int?
+  startQuarter Int?
+  endYear      Int?
+  endQuarter   Int?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

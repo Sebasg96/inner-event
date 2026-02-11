@@ -12,13 +12,15 @@ type Props = {
     style?: React.CSSProperties;
     placeholder?: string;
     'data-testid'?: string;
+    required?: boolean;
 };
 
-export default function EditableText({ initialValue, onSave, className, multiline, style, placeholder, 'data-testid': testId }: Props) {
+export default function EditableText({ initialValue, onSave, className, multiline, style, placeholder, 'data-testid': testId, required }: Props) {
     const { locale } = useLanguage();
     const [isEditing, setIsEditing] = useState(false);
     const [value, setValue] = useState(initialValue);
     const [isSaving, setIsSaving] = useState(false);
+    const [isValid, setIsValid] = useState(true);
     const [suggestion, setSuggestion] = useState<string | null>(null);
     const [reasoning, setReasoning] = useState<string | null>(null);
     const [isLoadingAI, setIsLoadingAI] = useState(false);
@@ -60,8 +62,18 @@ export default function EditableText({ initialValue, onSave, className, multilin
     }, [isEditing]);
 
     const handleSave = async () => {
+        const trimmedValue = value.trim();
+
+        if (required && !trimmedValue) {
+            setIsValid(false);
+            // Optionally shake or focus
+            inputRef.current?.focus();
+            return;
+        }
+
         if (value === initialValue) {
             setIsEditing(false);
+            setIsValid(true);
             return;
         }
 
@@ -69,6 +81,7 @@ export default function EditableText({ initialValue, onSave, className, multilin
         try {
             await onSave(value);
             setIsEditing(false);
+            setIsValid(true);
         } catch (error) {
             console.error("Failed to save", error);
             // Optionally revert or show error
@@ -84,37 +97,90 @@ export default function EditableText({ initialValue, onSave, className, multilin
         if (e.key === 'Escape') {
             setValue(initialValue);
             setIsEditing(false);
+            setIsValid(true);
+        }
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+        setValue(e.target.value);
+        if (required && e.target.value.trim()) {
+            setIsValid(true);
         }
     };
 
     if (isEditing) {
+        const errorStyle = !isValid ? { borderColor: '#ef4444', boxShadow: '0 0 0 2px rgba(239, 68, 68, 0.2)' } : {};
+
+        const CancelButton = () => (
+            <button
+                onMouseDown={(e) => {
+                    e.preventDefault(); // Prevent blur
+                    setIsEditing(false);
+                    setValue(initialValue);
+                    setIsValid(true);
+                }}
+                style={{
+                    position: 'absolute',
+                    right: '-30px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: '#ef4444',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '24px',
+                    height: '24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                    zIndex: 10
+                }}
+                title="Cancelar"
+            >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        );
+
         if (multiline) {
             return (
-                <textarea
-                    ref={inputRef as React.RefObject<HTMLTextAreaElement>}
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
-                    onBlur={handleSave}
-                    onKeyDown={handleKeyDown}
-                    className={className}
-                    style={{ width: '100%', minHeight: '60px', color: 'white', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', ...style }}
-                    disabled={isSaving}
-                    data-testid={testId}
-                />
+                <div style={{ position: 'relative', width: '100%' }}>
+                    <textarea
+                        ref={inputRef as React.RefObject<HTMLTextAreaElement>}
+                        value={value}
+                        onChange={handleChange}
+                        onBlur={handleSave}
+                        onKeyDown={handleKeyDown}
+                        className={className}
+                        style={{ width: '100%', minHeight: '60px', color: 'white', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', ...style, ...errorStyle }}
+                        disabled={isSaving}
+                        data-testid={testId}
+                    />
+                    <CancelButton />
+                    {!isValid && <span style={{ position: 'absolute', bottom: '-20px', left: 0, fontSize: '0.75rem', color: '#ef4444' }}>Campo obligatorio</span>}
+                </div>
             );
         }
         return (
-            <input
-                ref={inputRef as React.RefObject<HTMLInputElement>}
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                onBlur={handleSave}
-                onKeyDown={handleKeyDown}
-                className={className}
-                style={{ width: '100%', color: 'white', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', ...style }}
-                disabled={isSaving}
-                data-testid={testId}
-            />
+            <div style={{ position: 'relative', width: '100%' }}>
+                <input
+                    ref={inputRef as React.RefObject<HTMLInputElement>}
+                    value={value}
+                    onChange={handleChange}
+                    onBlur={handleSave}
+                    onKeyDown={handleKeyDown}
+                    className={className}
+                    style={{ width: '100%', color: 'white', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', ...style, ...errorStyle }}
+                    disabled={isSaving}
+                    data-testid={testId}
+                />
+                <CancelButton />
+                {!isValid && <span style={{ position: 'absolute', bottom: '-20px', left: 0, fontSize: '0.75rem', color: '#ef4444' }}>Campo obligatorio</span>}
+            </div>
         );
     }
 
