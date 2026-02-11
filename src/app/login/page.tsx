@@ -211,7 +211,7 @@ export default function LoginPage() {
 
                     <div style={{ textAlign: 'center', marginTop: '1rem' }}>
                         <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem' }}>
-                            ¿No tienes cuenta? <a href="/signup" style={{ color: '#fff', fontWeight: 600, textDecoration: 'none' }}>Regístrate</a>
+                            ¿No tienes cuenta? Contacta a tu administrador.
                         </p>
                     </div>
                 </form>

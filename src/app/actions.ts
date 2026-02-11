@@ -8,6 +8,7 @@ import { cookies } from 'next/headers';
 // --- Auth ---
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function verifyLogin(formData: FormData) {
     const email = formData.get('email') as string;
@@ -769,7 +770,8 @@ export async function getTenantUsers() {
             lastName: true,
             email: true,
             area: true,
-            jobTitle: true
+            jobTitle: true,
+            role: true
         },
         orderBy: { name: 'asc' }
     });
@@ -782,6 +784,97 @@ export async function deleteOrganizationalValue(id: string) {
         where: { id }
     });
     revalidatePath('/strategy/planning');
+}
+
+// --- Admin User Management ---
+
+export async function updateUserRole(userId: string, newRole: 'ADMIN' | 'USER') {
+    const currentUser = await getCurrentUser();
+    
+    // Security check: Only ADMINs can change roles
+    if (currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPERADMIN') {
+        throw new Error('Unauthorized: Only admins can update user roles');
+    }
+
+    await prisma.user.update({
+        where: { id: userId },
+        data: { role: newRole }
+    });
+
+    revalidatePath('/capacities/users');
+    revalidatePath('/admin/users');
+}
+
+export async function inviteUser(formData: FormData) {
+    // 1. Verificar permisos del solicitante
+    const currentUser = await getCurrentUser();
+    if (currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPERADMIN') {
+        return { error: 'Unauthorized: Only admins can invite users' };
+    }
+
+    const email = formData.get('email') as string;
+    const name = formData.get('name') as string;
+    const jobRole = formData.get('jobRole') as JobRole || 'MEMBER';
+    const area = formData.get('area') as string;
+    const role = formData.get('role') as 'ADMIN' | 'USER' || 'USER';
+
+    if (!email) return { error: 'Email is required' };
+
+    try {
+        const supabaseAdmin = createAdminClient();
+
+        // 2. Invitar usuario en Supabase Auth
+        // sendInviteEmail: true enviará el correo por defecto de Supabase (o el personalizado si está configurado)
+        // Redirigimos al callback que manejará el intercambio de token y enviará a update-password
+        const origin = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+            data: {
+                full_name: name,
+                tenant_id: currentUser.tenantId
+            },
+            redirectTo: `${origin}/auth/callback?next=/auth/update-password`
+        });
+
+        if (authError) {
+            console.error('Supabase Invite Error:', authError);
+            return { error: 'Failed to invite user: ' + authError.message };
+        }
+
+        if (!authData.user) {
+            return { error: 'Failed to create auth user instance' };
+        }
+
+        // 3. Crear usuario en nuestra DB (Prisma)
+        // Usamos upsert por si el usuario ya existiera en DB pero no en Auth (caso raro/legacy)
+        await prisma.user.upsert({
+            where: { email },
+            update: {
+                name,
+                role,
+                jobRole,
+                area,
+                tenantId: currentUser.tenantId
+            },
+            create: {
+                id: authData.user.id, // Sincronizar ID con Supabase
+                email,
+                name,
+                role,
+                jobRole,
+                area,
+                tenantId: currentUser.tenantId,
+                password: 'PENDING_SETUP' // Placeholder, auth real es via Supabase
+            }
+        });
+
+        revalidatePath('/capacities/users');
+        revalidatePath('/admin/users');
+        return { success: true };
+
+    } catch (error: any) {
+        console.error('Invite User Error:', error);
+        return { error: error.message || 'An unexpected error occurred' };
+    }
 }
 
 // Strategic Access Management

@@ -4,12 +4,14 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useAuth } from '@/lib/auth/AuthContext';
 import LanguageSwitcher from './LanguageSwitcher';
 import styles from './NavBar.module.css';
 import NotificationBell from './Notifications/NotificationBell';
 
 export default function NavBar() {
     const { dict } = useLanguage();
+    const { user } = useAuth();
     const pathname = usePathname();
     const [isOpen, setIsOpen] = useState(false);
 
@@ -35,6 +37,10 @@ export default function NavBar() {
         { href: '/emergent', label: dict.nav.emergent || 'Emergent', color: '--module-emergent' },
         { href: '/rituals', label: 'Rituales', color: '--accent' }
     ];
+
+    if (user?.role === 'ADMIN' || user?.role === 'SUPERADMIN') {
+        navItems.push({ href: '/admin/users', label: 'Admin', color: '--primary' });
+    }
 
     const toggleMenu = () => setIsOpen(!isOpen);
 
