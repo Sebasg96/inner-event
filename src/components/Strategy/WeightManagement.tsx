@@ -96,6 +96,7 @@ const ObjectiveItem = ({
                     {(obj.keyResults?.length > 0 || (obj.childObjectives?.length || 0) > 0) && (
                         <button
                             onClick={() => toggleObjective(obj.id)}
+                            data-testid={`weights-obj-${obj.id}-toggle`}
                             style={{
                                 background: 'none',
                                 border: 'none',
@@ -124,6 +125,7 @@ const ObjectiveItem = ({
                         <input
                             type="number"
                             value={currentWeight}
+                            data-testid={`weights-obj-${obj.id}-input`}
                             onChange={(e) => handleWeightChange(obj.id, e.target.value)}
                             style={{
                                 width: '100%',
@@ -190,6 +192,7 @@ const ObjectiveItem = ({
                                                 <input
                                                     type="number"
                                                     value={krWeight}
+                                                    data-testid={`weights-kr-${kr.id}-input`}
                                                     onChange={(e) => handleWeightChange(kr.id, e.target.value)}
                                                     style={{
                                                         width: '100%',
@@ -314,7 +317,7 @@ export default function WeightManagement({ purpose, themeColor }: Props) {
             validateGroup(mega.objectives);
             const scan = (obj: Objective) => {
                 if (obj.keyResults?.length > 0) validateGroup(obj.keyResults);
-                if (obj.childObjectives?.length > 0) validateGroup(obj.childObjectives);
+                if ((obj.childObjectives?.length || 0) > 0) validateGroup(obj.childObjectives || []);
                 obj.childObjectives?.forEach(scan);
             };
             mega.objectives.forEach(scan);
@@ -424,6 +427,7 @@ export default function WeightManagement({ purpose, themeColor }: Props) {
                     <button
                         onClick={handleBatchSave}
                         disabled={!hasChanges || globalValidationErrors > 0 || isSaving}
+                        data-testid="weights-save-button"
                         style={{
                             background: hasChanges && globalValidationErrors === 0 ? themeColor : '#e2e8f0',
                             color: hasChanges && globalValidationErrors === 0 ? 'white' : '#94a3b8',
@@ -509,9 +513,7 @@ export default function WeightManagement({ purpose, themeColor }: Props) {
                                     saveBlocked={saveBlocked}
                                     themeColor={themeColor}
                                     dbWeights={dbWeights}
-                                    // Removed old handlers
-                                    handleUpdateObjectiveWeight={() => { }}
-                                    handleUpdateKRWeight={() => { }}
+                                // Removed old handlers
                                 />
                             </div>
                         ))}

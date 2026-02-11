@@ -58,10 +58,25 @@ export default async function PlanningPage() {
                 include: {
                     objectives: {
                         where: buildObjectiveWhere({ parentObjectiveId: null }),
-                        include: {
+                        select: {
+                            id: true,
+                            statement: true,
+                            weight: true,
                             owner: true,
                             keyResults: {
-                                include: {
+                                select: {
+                                    id: true,
+                                    statement: true,
+                                    targetValue: true,
+                                    currentValue: true,
+                                    weight: true,
+                                    metricUnit: true,
+                                    trackingType: true,
+                                    numeratorValue: true,
+                                    denominatorValue: true,
+                                    numeratorLabel: true,
+                                    denominatorLabel: true,
+
                                     owner: true,
                                     initiatives: {
                                         select: { id: true, progress: true, status: true, title: true }
@@ -74,10 +89,25 @@ export default async function PlanningPage() {
                             },
                             childObjectives: { // Level 2
                                 where: buildObjectiveWhere(),
-                                include: {
+                                select: {
+                                    id: true,
+                                    statement: true,
+                                    weight: true,
                                     owner: true,
                                     keyResults: {
-                                        include: {
+                                        select: {
+                                            id: true,
+                                            statement: true,
+                                            targetValue: true,
+                                            currentValue: true,
+                                            weight: true,
+                                            metricUnit: true,
+                                            trackingType: true,
+                                            numeratorValue: true,
+                                            denominatorValue: true,
+                                            numeratorLabel: true,
+                                            denominatorLabel: true,
+
                                             owner: true,
                                             initiatives: { select: { id: true, progress: true, status: true, title: true } },
                                             updates: {
@@ -88,10 +118,25 @@ export default async function PlanningPage() {
                                     },
                                     childObjectives: { // Level 3
                                         where: buildObjectiveWhere(),
-                                        include: {
+                                        select: {
+                                            id: true,
+                                            statement: true,
+                                            weight: true,
                                             owner: true,
                                             keyResults: {
-                                                include: {
+                                                select: {
+                                                    id: true,
+                                                    statement: true,
+                                                    targetValue: true,
+                                                    currentValue: true,
+                                                    weight: true,
+                                                    metricUnit: true,
+                                                    trackingType: true,
+                                                    numeratorValue: true,
+                                                    denominatorValue: true,
+                                                    numeratorLabel: true,
+                                                    denominatorLabel: true,
+
                                                     owner: true,
                                                     initiatives: { select: { id: true, progress: true, status: true, title: true } },
                                                     updates: {

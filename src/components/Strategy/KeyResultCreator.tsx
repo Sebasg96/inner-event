@@ -6,6 +6,7 @@ import styles from '@/app/strategy/page.module.css';
 
 export default function KeyResultCreator({ objectiveId }: { objectiveId: string }) {
     const [isOpen, setIsOpen] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [trackingType, setTrackingType] = useState<'PERCENTAGE' | 'UNITS'>('PERCENTAGE');
     const [metricUnit, setMetricUnit] = useState('%');
 
@@ -59,7 +60,17 @@ export default function KeyResultCreator({ objectiveId }: { objectiveId: string 
                 </button>
             </div>
 
-            <form action={createKeyResult} style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <form
+                action={async (formData) => {
+                    setIsSaving(true);
+                    await createKeyResult(formData);
+                    setIsSaving(false);
+                    setIsOpen(false);
+                    // Dispatch event to update NotificationBell
+                    window.dispatchEvent(new Event('kr-updated'));
+                }}
+                style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '1rem' }}
+            >
                 <input type="hidden" name="objectiveId" value={objectiveId} />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                     <input
@@ -143,9 +154,17 @@ export default function KeyResultCreator({ objectiveId }: { objectiveId: string 
                     </button>
                     <button
                         type="submit"
-                        style={{ background: '#334155', color: 'white', border: 'none', borderRadius: '6px', padding: '0.5rem 1.5rem', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 600 }}
+                        disabled={isSaving}
+                        style={{ background: isSaving ? '#94a3b8' : '#334155', color: 'white', border: 'none', borderRadius: '6px', padding: '0.5rem 1.5rem', fontSize: '0.85rem', cursor: isSaving ? 'not-allowed' : 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                     >
-                        Guardar KR
+                        {isSaving && (
+                            <svg width="12" height="12" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ animation: 'spin 1s linear infinite' }}>
+                                <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+                                <path d="M12,1A11,11,0,1,0,23,12,11,11,0,0,0,12,1Zm0,19a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z" opacity=".25" fill="white" />
+                                <path d="M12,4a8,8,0,0,1,7.89,6.7A1.5,1.5,0,0,0,21.38,12h0a1.5,1.5,0,0,0,1.48-1.75,11,11,0,0,0-21.72,0A1.5,1.5,0,0,0,2.62,12h0a1.5,1.5,0,0,0,1.48-1.75A8,8,0,0,1,12,4Z" fill="white" />
+                            </svg>
+                        )}
+                        {isSaving ? 'Guardando...' : 'Guardar KR'}
                     </button>
                 </div>
             </form>

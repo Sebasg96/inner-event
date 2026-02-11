@@ -69,6 +69,7 @@ export default function KanbanPageClient({ initiatives, krs, tenantUsers }: Prop
                     </h1>
                     <button
                         onClick={() => setShowCreator(!showCreator)}
+                        data-testid="kanban-new-initiative-btn"
                         style={{
                             background: showCreator ? '#ef4444' : 'var(--primary)',
                             color: 'white',
@@ -130,10 +131,15 @@ export default function KanbanPageClient({ initiatives, krs, tenantUsers }: Prop
                         key={initiative.id}
                         className="glass-panel"
                         style={{ padding: '1.5rem', transition: 'transform 0.2s', height: '100%', position: 'relative', display: 'flex', flexDirection: 'column' }}
+                        data-testid={`kanban-initiative-${initiative.id}`}
                     >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1rem' }}>
                             <Link href={`/strategy/initiative/${initiative.id}`} style={{ textDecoration: 'none', color: 'inherit', flex: 1 }}>
-                                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 600, cursor: 'pointer' }} className="hover:text-primary">
+                                <h3
+                                    style={{ margin: 0, fontSize: '1.2rem', fontWeight: 600, cursor: 'pointer' }}
+                                    className="hover:text-primary"
+                                    data-testid={`kanban-initiative-title-${initiative.id}`}
+                                >
                                     {initiative.title}
                                 </h3>
                             </Link>
@@ -169,6 +175,7 @@ export default function KanbanPageClient({ initiatives, krs, tenantUsers }: Prop
                                 onChange={async (e) => {
                                     await updateInitiativeOwner(initiative.id, e.target.value || null);
                                 }}
+                                data-testid={`kanban-initiative-owner-${initiative.id}`}
                                 style={{
                                     fontSize: '0.8rem',
                                     padding: '0.2rem',

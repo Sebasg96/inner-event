@@ -137,6 +137,7 @@ export default function LoginPage() {
                             required
                             placeholder="nombre@empresa.com"
                             className={styles.input}
+                            data-testid="auth-login-email-input"
                             style={{
                                 width: '100%',
                                 background: 'rgba(255,255,255,0.05)',
@@ -158,6 +159,7 @@ export default function LoginPage() {
                             required
                             defaultValue="12345"
                             className={styles.input}
+                            data-testid="auth-login-password-input"
                             style={{
                                 width: '100%',
                                 background: 'rgba(255,255,255,0.05)',
@@ -188,6 +190,7 @@ export default function LoginPage() {
                         type="submit"
                         disabled={loading}
                         className="btn-primary"
+                        data-testid="auth-login-submit-button"
                         style={{
                             width: '100%',
                             padding: '1.1rem',

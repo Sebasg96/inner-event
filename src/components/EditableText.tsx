@@ -11,9 +11,10 @@ type Props = {
     multiline?: boolean;
     style?: React.CSSProperties;
     placeholder?: string;
+    'data-testid'?: string;
 };
 
-export default function EditableText({ initialValue, onSave, className, multiline, style, placeholder }: Props) {
+export default function EditableText({ initialValue, onSave, className, multiline, style, placeholder, 'data-testid': testId }: Props) {
     const { locale } = useLanguage();
     const [isEditing, setIsEditing] = useState(false);
     const [value, setValue] = useState(initialValue);
@@ -96,8 +97,9 @@ export default function EditableText({ initialValue, onSave, className, multilin
                     onBlur={handleSave}
                     onKeyDown={handleKeyDown}
                     className={className}
-                    style={{ ...style, width: '100%', minHeight: '60px', color: 'white', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
+                    style={{ width: '100%', minHeight: '60px', color: 'white', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', ...style }}
                     disabled={isSaving}
+                    data-testid={testId}
                 />
             );
         }
@@ -109,8 +111,9 @@ export default function EditableText({ initialValue, onSave, className, multilin
                 onBlur={handleSave}
                 onKeyDown={handleKeyDown}
                 className={className}
-                style={{ ...style, width: '100%', color: 'white', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
+                style={{ width: '100%', color: 'white', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', ...style }}
                 disabled={isSaving}
+                data-testid={testId}
             />
         );
     }
@@ -129,6 +132,7 @@ export default function EditableText({ initialValue, onSave, className, multilin
                 minWidth: '20px'
             }}
             title="Click to edit"
+            data-testid={testId}
         >
             {value || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{placeholder || 'Empty...'}</span>}
             {isSaving && <span style={{ marginLeft: '8px', fontSize: '0.8em' }}>💾</span>}

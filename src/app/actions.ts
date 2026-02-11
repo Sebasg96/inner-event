@@ -260,6 +260,22 @@ export async function createObjective(formData: FormData) {
 
 export async function createKeyResult(formData: FormData) {
     const tenantId = await getTenantId();
+    
+    // Get current user to assign as owner
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    let ownerId: string | undefined;
+    if (user) {
+        const dbUser = await prisma.user.findUnique({
+            where: { email: user.email },
+            select: { id: true }
+        });
+        if (dbUser) {
+            ownerId = dbUser.id;
+        }
+    }
+
     const statement = formData.get('statement') as string;
     const targetValue = parseFloat(formData.get('targetValue') as string);
     const metricUnit = formData.get('metricUnit') as string;
@@ -275,7 +291,9 @@ export async function createKeyResult(formData: FormData) {
             objectiveId, 
             tenantId,
             trackingType: trackingType || 'PERCENTAGE',
-            updatePeriodicity: updatePeriodicity || null
+            updatePeriodicity: updatePeriodicity || null,
+            weight: 0,
+            ownerId: ownerId // Assign owner
         },
     });
     revalidatePath('/strategy');
@@ -847,17 +865,22 @@ export async function getUserNotifications() {
 
     if (!dbUser) return [];
 
-    // Fetch KRs owned by user with periodicity set
+    // Fetch KRs owned by user with (periodicity set OR weight 0)
+    console.log("Fetching notifications for ownerId:", dbUser.id);
     const krs = await prisma.keyResult.findMany({
         where: {
             ownerId: dbUser.id,
-            updatePeriodicity: { not: null }
+            OR: [
+                { updatePeriodicity: { not: null } },
+                { weight: 0 }
+            ]
         },
         select: {
             id: true,
             statement: true,
             updatedAt: true,
             updatePeriodicity: true,
+            weight: true,
             objective: {
                 select: {
                     statement: true
@@ -865,10 +888,23 @@ export async function getUserNotifications() {
             }
         }
     });
+    console.log("Found KRs for notifications:", krs.length);
 
     const now = new Date();
-    const notifications = krs.filter(kr => {
-        if (!kr.updatePeriodicity) return false;
+    const notifications = krs.map(kr => {
+        // Type 1: Weight Review
+        if (kr.weight === 0) {
+            return {
+                id: kr.id,
+                title: kr.statement,
+                objectiveTitle: kr.objective.statement,
+                daysOverdue: 0,
+                type: 'WEIGHT_REVIEW'
+            };
+        }
+
+        // Type 2: Periodicity Update (Overdue)
+        if (!kr.updatePeriodicity) return null;
 
         const lastUpdate = new Date(kr.updatedAt);
         let dueDate = new Date(lastUpdate);
@@ -894,14 +930,19 @@ export async function getUserNotifications() {
                 break;
         }
 
-        // Return true if dueDate is in the past (Overdue)
-        return dueDate < now;
-    }).map(kr => ({
-        id: kr.id,
-        title: kr.statement,
-        objectiveTitle: kr.objective.statement,
-        daysOverdue: Math.floor((now.getTime() - new Date(kr.updatedAt).getTime()) / (1000 * 3600 * 24))
-    }));
+        // Only include if overdue
+        if (dueDate < now) {
+            return {
+                id: kr.id,
+                title: kr.statement,
+                objectiveTitle: kr.objective.statement,
+                daysOverdue: Math.floor((now.getTime() - new Date(kr.updatedAt).getTime()) / (1000 * 3600 * 24)),
+                type: 'OVERDUE'
+            };
+        }
+        
+        return null;
+    }).filter(n => n !== null);
 
     return notifications;
 }
@@ -924,4 +965,53 @@ export async function updateInitiativeOwner(initiativeId: string, ownerId: strin
         data: { ownerId }
     });
     revalidatePath('/strategy/execution');
+}
+
+export async function updateObjectiveWeight(objectiveId: string, weight: number) {
+    const tenantId = await getTenantId();
+    await prisma.objective.update({
+        where: { id: objectiveId, tenantId },
+        data: { weight }
+    });
+    revalidatePath('/strategy');
+    revalidatePath('/strategy/planning');
+}
+
+export async function updateKeyResultWeight(keyResultId: string, weight: number) {
+    const tenantId = await getTenantId();
+    await prisma.keyResult.update({
+        where: { id: keyResultId, tenantId },
+        data: { weight }
+    });
+    revalidatePath('/strategy');
+    revalidatePath('/strategy/planning');
+}
+
+export async function updateWeightsBatch(updates: { type: 'OBJECTIVE' | 'KR', id: string, weight: number }[]) {
+    const tenantId = await getTenantId();
+    
+    try {
+        await prisma.$transaction(async (tx) => {
+            for (const update of updates) {
+                if (update.type === 'OBJECTIVE') {
+                    await tx.objective.update({
+                        where: { id: update.id, tenantId },
+                        data: { weight: update.weight }
+                    });
+                } else if (update.type === 'KR') {
+                    await tx.keyResult.update({
+                        where: { id: update.id, tenantId },
+                        data: { weight: update.weight }
+                    });
+                }
+            }
+        });
+        
+        revalidatePath('/strategy');
+        revalidatePath('/strategy/planning');
+        return { success: true };
+    } catch (error) {
+        console.error("Batch update failed:", error);
+        return { error: 'Failed to update weights' };
+    }
 }

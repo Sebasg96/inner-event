@@ -116,6 +116,7 @@ export default function SignupPage() {
                                         required
                                         placeholder="Juan Pérez"
                                         className={styles.input}
+                                        data-testid="auth-signup-name-input"
                                         style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0.8rem', borderRadius: '10px' }}
                                     />
                                 </div>
@@ -128,6 +129,7 @@ export default function SignupPage() {
                                         required
                                         placeholder="usuario@empresa.com"
                                         className={styles.input}
+                                        data-testid="auth-signup-email-input"
                                         style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0.8rem', borderRadius: '10px' }}
                                     />
                                 </div>
@@ -139,6 +141,7 @@ export default function SignupPage() {
                                         type="text"
                                         placeholder="Nombre de tu Organización"
                                         className={styles.input}
+                                        data-testid="auth-signup-company-input"
                                         style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0.8rem', borderRadius: '10px' }}
                                     />
                                     <p style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.3)', marginTop: '0.5rem' }}>
@@ -154,6 +157,7 @@ export default function SignupPage() {
                                         required
                                         placeholder="••••••••"
                                         className={styles.input}
+                                        data-testid="auth-signup-password-input"
                                         style={{ width: '100%', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', padding: '0.8rem', borderRadius: '10px' }}
                                     />
                                 </div>
@@ -169,6 +173,7 @@ export default function SignupPage() {
                                 type="submit"
                                 disabled={loading}
                                 className="btn-primary"
+                                data-testid="auth-signup-submit-button"
                                 style={{ width: '100%', padding: '1rem', background: 'white', color: 'black', borderRadius: '12px', fontWeight: 600, marginTop: '1rem' }}
                             >
                                 {loading ? 'Iniciando secuencia...' : 'Comenzar Aventura'}

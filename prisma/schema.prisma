@@ -222,6 +222,8 @@ model Objective {
 
   strategicAccess StrategicAccess[]
 
+  weight      Float   @default(1.0)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -255,6 +257,7 @@ model KeyResult {
   updates     KeyResultUpdate[]
 
   updatePeriodicity UpdatePeriodicity?
+  weight            Float             @default(1.0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

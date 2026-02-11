@@ -69,6 +69,7 @@ export default function KanbanBoard({ tasks: initialTasks, initiativeId }: { tas
                     className={styles.column}
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleDrop(e, col.status)}
+                    data-testid={`kanban-col-${col.id}`}
                 >
                     <div className={styles.columnHeader}>
                         {dict.kanban[col.id]}
@@ -81,6 +82,7 @@ export default function KanbanBoard({ tasks: initialTasks, initiativeId }: { tas
                                 className={styles.card}
                                 draggable
                                 onDragStart={(e) => handleDragStart(e, task.id)}
+                                data-testid={`kanban-task-${task.id}`}
                             >
                                 <div className={styles.cardTitle}>{task.title}</div>
                                 <div className={styles.cardFooter}>

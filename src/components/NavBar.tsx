@@ -41,14 +41,14 @@ export default function NavBar() {
     return (
         <div className={styles.navContainer}>
             {/* Logo - Always visible */}
-            <Link href="/" title="Inicio">
+            <Link href="/" title="Inicio" data-testid="nav-logo-link">
                 <img src="/pragma-logo.png" alt="Logo" style={{ height: '32px', width: 'auto' }} />
             </Link>
 
             {/* Default Controls: Lang Switch + Hamburger */}
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '1rem' }}>
                 <NotificationBell />
-                <div className={styles.desktopLangSwitch}>
+                <div className={styles.desktopLangSwitch} data-testid="nav-lang-switch-desktop">
                     <LanguageSwitcher />
                 </div>
 
@@ -56,6 +56,7 @@ export default function NavBar() {
                     className={`${styles.mobileMenuBtn} ${styles.alwaysVisible}`}
                     onClick={toggleMenu}
                     aria-label="Toggle Menu"
+                    data-testid="nav-menu-toggle"
                 >
                     <div className={styles.hamburgerIcon} />
                 </button>
@@ -67,6 +68,7 @@ export default function NavBar() {
                     className={styles.closeBtn}
                     onClick={toggleMenu}
                     aria-label="Close Menu"
+                    data-testid="nav-menu-close"
                 >
                     &times;
                 </button>
@@ -79,6 +81,7 @@ export default function NavBar() {
                             className={styles.mobileLink}
                             onClick={toggleMenu}
                             style={{ color: isActive(item.href) ? `hsl(var(${item.color}))` : 'hsl(var(--text-body))' }}
+                            data-testid={`nav-item-${item.href.replace('/', '')}`}
                         >
                             {item.label}
                         </Link>
@@ -91,6 +94,7 @@ export default function NavBar() {
                         className={styles.mobileLink}
                         onClick={toggleMenu}
                         style={{ color: 'hsl(var(--text-muted))', fontSize: '0.95rem' }}
+                        data-testid="nav-item-about"
                     >
                         About
                     </Link>
@@ -102,6 +106,7 @@ export default function NavBar() {
                             window.location.href = '/login';
                         }}
                         className={styles.mobileLink}
+                        data-testid="nav-logout-button"
                         style={{
                             color: '#ef4444',
                             textAlign: 'left',

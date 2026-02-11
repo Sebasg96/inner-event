@@ -10,6 +10,7 @@ interface Notification {
     title: string;
     objectiveTitle: string;
     daysOverdue: number;
+    type?: string;
 }
 
 export default function NotificationBell() {
@@ -130,8 +131,11 @@ export default function NotificationBell() {
                                     key={notif.id}
                                     onClick={() => {
                                         setIsOpen(false);
-                                        // Navigate to plan with query param
-                                        router.push(`/strategy/planning?openKrId=${notif.id}`);
+                                        if (notif.type === 'WEIGHT_REVIEW') {
+                                            router.push('/strategy/planning?tab=WEIGHTS');
+                                        } else {
+                                            router.push(`/strategy/planning?openKrId=${notif.id}`);
+                                        }
                                     }}
                                     style={{
                                         padding: '0.75rem 1rem',
@@ -151,9 +155,16 @@ export default function NotificationBell() {
                                     <div style={{ fontSize: '0.7rem', color: '#64748b' }}>
                                         {notif.objectiveTitle}
                                     </div>
-                                    <div style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 500, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                        <span>⏰</span> Vencido hace {notif.daysOverdue} días
-                                    </div>
+
+                                    {notif.type === 'WEIGHT_REVIEW' ? (
+                                        <div style={{ fontSize: '0.65rem', color: '#f59e0b', fontWeight: 600, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <span>⚖️</span> Revisar Ponderación (0%)
+                                        </div>
+                                    ) : (
+                                        <div style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 500, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <span>⏰</span> Vencido hace {notif.daysOverdue} días
+                                        </div>
+                                    )}
                                 </div>
                             ))
                         )}
