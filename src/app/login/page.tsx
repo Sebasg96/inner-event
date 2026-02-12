@@ -13,6 +13,7 @@ export default function LoginPage() {
     const { isLoading } = useAuth();
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [isProcessingInvite, setIsProcessingInvite] = useState(false);
     const router = useRouter();
     const [supabase] = useState(() => createClient());
 
@@ -29,8 +30,13 @@ export default function LoginPage() {
                 // Si hay sesión y el hash inicial indicaba invitación, redirigir
                 if (initialHash.includes('type=invite') || initialHash.includes('type=recovery')) {
                     console.log('Redirecting to update password (from initial hash)');
-                    router.push('/auth/update-password');
+                    setIsProcessingInvite(true);
+                    // Usar window.location.href para asegurar refresco de cookies
+                    window.location.href = '/auth/update-password';
                 }
+            } else if (initialHash.includes('type=invite') || initialHash.includes('type=recovery')) {
+                // Si no hay sesión pero hay hash de invitación, mostrar loading mientras supabase procesa
+                setIsProcessingInvite(true);
             }
         });
 
@@ -46,7 +52,11 @@ export default function LoginPage() {
 
                 if (isInvite || isRecovery) {
                     console.log('Redirecting to update password (from event)');
-                    router.push('/auth/update-password');
+                    setIsProcessingInvite(true);
+                    // Pequeña espera para asegurar que la cookie se establezca si es necesario
+                    setTimeout(() => {
+                        window.location.href = '/auth/update-password';
+                    }, 500);
                 } else {
                     // Flujo normal: solo redirigir si NO estamos ya en el home
                     // Esto evita conflictos si el AuthContext hace refresh
@@ -263,6 +273,45 @@ export default function LoginPage() {
                 </form>
 
 
+
+                <AnimatePresence>
+                    {isProcessingInvite && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            style={{
+                                position: 'absolute',
+                                top: 0, left: 0, right: 0, bottom: 0,
+                                background: 'rgba(4, 7, 13, 0.9)',
+                                zIndex: 20,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white'
+                            }}
+                        >
+                            <div style={{
+                                width: '40px',
+                                height: '40px',
+                                border: '3px solid rgba(255,255,255,0.3)',
+                                borderTop: '3px solid #fff',
+                                borderRadius: '50%',
+                                animation: 'spin 1s linear infinite',
+                                marginBottom: '1rem'
+                            }} />
+                            <p style={{ fontSize: '1.1rem', fontWeight: 500 }}>Estamos preparando tu cuenta...</p>
+                            <p style={{ fontSize: '0.9rem', color: '#94a3b8', marginTop: '0.5rem' }}>Verificando invitación segura</p>
+                            <style jsx>{`
+                                @keyframes spin {
+                                    0% { transform: rotate(0deg); }
+                                    100% { transform: rotate(360deg); }
+                                }
+                            `}</style>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </motion.div>
         </div>
     );
