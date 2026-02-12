@@ -14,20 +14,43 @@ export default function LoginPage() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const router = useRouter();
-    const supabase = createClient();
+    const [supabase] = useState(() => createClient());
 
     useEffect(() => {
-        // Escuchar cambios de autenticación (ej. cuando se procesa el hash del link de invitación)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            if (event === 'SIGNED_IN' && session) {
-                // Verificar si hay un hash de tipo invite en la URL actual antes de que se limpie
-                const isInvite = window.location.hash.includes('type=invite');
+        // Capturar el hash inmediatamente al montar el componente
+        // Esto es crítico porque el cliente de Supabase puede limpiar el hash URL rápidamente
+        const initialHash = window.location.hash;
+        console.log('Login Mount with Hash:', initialHash);
 
-                if (isInvite) {
-                    // Si es una invitación, redirigir a establecer contraseña
+        // Verificar si ya tenemos sesión (race condition)
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+                console.log('Session found on mount', session.user.email);
+                // Si hay sesión y el hash inicial indicaba invitación, redirigir
+                if (initialHash.includes('type=invite') || initialHash.includes('type=recovery')) {
+                    console.log('Redirecting to update password (from initial hash)');
+                    router.push('/auth/update-password');
+                }
+            }
+        });
+
+        // Escuchar eventos futuros
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log('Auth Event:', event);
+
+            if (event === 'SIGNED_IN' && session) {
+                // Verificar hash capturado inicialmente o el actual si aún existe
+                const currentHash = window.location.hash;
+                const isInvite = initialHash.includes('type=invite') || currentHash.includes('type=invite');
+                const isRecovery = initialHash.includes('type=recovery') || currentHash.includes('type=recovery');
+
+                if (isInvite || isRecovery) {
+                    console.log('Redirecting to update password (from event)');
                     router.push('/auth/update-password');
                 } else {
-                    // Flujo normal (opcional, ya que el middleware suele manejar esto)
+                    // Flujo normal: solo redirigir si NO estamos ya en el home
+                    // Esto evita conflictos si el AuthContext hace refresh
+                    console.log('Standard login, redirecting to home');
                     router.push('/');
                 }
             }
