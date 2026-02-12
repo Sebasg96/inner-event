@@ -6,12 +6,35 @@ import { verifyLogin } from '@/app/actions';
 import { useRouter } from 'next/navigation';
 import styles from '@/app/strategy/page.module.css';
 import { motion, AnimatePresence } from 'framer-motion';
+import { createClient } from '@/lib/supabase/client';
+import { useEffect } from 'react';
 
 export default function LoginPage() {
     const { isLoading } = useAuth();
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const router = useRouter();
+    const supabase = createClient();
+
+    useEffect(() => {
+        // Escuchar cambios de autenticación (ej. cuando se procesa el hash del link de invitación)
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+                // Verificar si hay un hash de tipo invite en la URL actual antes de que se limpie
+                const isInvite = window.location.hash.includes('type=invite');
+
+                if (isInvite) {
+                    // Si es una invitación, redirigir a establecer contraseña
+                    router.push('/auth/update-password');
+                } else {
+                    // Flujo normal (opcional, ya que el middleware suele manejar esto)
+                    router.push('/');
+                }
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, [router, supabase]);
 
     async function handleSubmit(formData: FormData) {
         setLoading(true);

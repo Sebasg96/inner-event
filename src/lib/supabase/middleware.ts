@@ -42,6 +42,7 @@ export async function updateSession(request: NextRequest) {
     // Si no hay usuario y no está en login, redirigir a login
     const url = request.nextUrl.clone()
     url.pathname = '/login'
+    url.searchParams.set('reason', 'middleware_no_user')
     return NextResponse.redirect(url)
   }
 
