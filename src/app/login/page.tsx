@@ -237,6 +237,11 @@ export default function LoginPage() {
                                 transition: 'all 0.3s ease'
                             }}
                         />
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                            <a href="/auth/forgot-password" style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem', textDecoration: 'none', transition: 'color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.color = '#fff'} onMouseOut={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.5)'}>
+                                ¿Olvidaste tu contraseña?
+                            </a>
+                        </div>
                     </div>
 
                     <AnimatePresence>
