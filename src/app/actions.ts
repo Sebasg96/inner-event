@@ -846,26 +846,60 @@ export async function inviteUser(formData: FormData) {
 
         // 3. Crear usuario en nuestra DB (Prisma)
         // Usamos upsert por si el usuario ya existiera en DB pero no en Auth (caso raro/legacy)
-        await prisma.user.upsert({
-            where: { email },
-            update: {
-                name,
-                role,
-                jobRole,
-                area,
-                tenantId: currentUser.tenantId
-            },
-            create: {
-                id: authData.user.id, // Sincronizar ID con Supabase
-                email,
-                name,
-                role,
-                jobRole,
-                area,
-                tenantId: currentUser.tenantId,
-                password: 'PENDING_SETUP' // Placeholder, auth real es via Supabase
-            }
+        // 3. Crear usuario en nuestra DB (Prisma)
+        // Verificamos primero si existe por email
+        const existingUserByEmail = await prisma.user.findUnique({
+            where: { email }
         });
+
+        if (existingUserByEmail) {
+            // Existe por email, actualizamos
+            await prisma.user.update({
+                where: { email },
+                data: {
+                    name,
+                    role,
+                    jobRole,
+                    area,
+                    tenantId: currentUser.tenantId
+                }
+            });
+        } else {
+            // No existe por email. Verificamos si existe por ID (caso inconsistencia Supabase vs Prisma)
+            const existingUserById = await prisma.user.findUnique({
+                where: { id: authData.user.id }
+            });
+
+            if (existingUserById) {
+                // Existe el ID pero con otro email (o sin email?), actualizamos para sincronizar
+                console.log(`User ID collision detected. Syncing email for ID ${authData.user.id}`);
+                await prisma.user.update({
+                    where: { id: authData.user.id },
+                    data: {
+                        email, // Actualizamos el email al nuevo
+                        name,
+                        role,
+                        jobRole,
+                        area,
+                        tenantId: currentUser.tenantId
+                    }
+                });
+            } else {
+                // No existe ni por email ni por ID, creamos uno nuevo
+                await prisma.user.create({
+                    data: {
+                        id: authData.user.id, // Sincronizar ID con Supabase
+                        email,
+                        name,
+                        role,
+                        jobRole,
+                        area,
+                        tenantId: currentUser.tenantId,
+                        password: 'PENDING_SETUP'
+                    }
+                });
+            }
+        }
 
         revalidatePath('/capacities/users');
         revalidatePath('/admin/users');
