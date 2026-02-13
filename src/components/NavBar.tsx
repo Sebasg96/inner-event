@@ -30,6 +30,7 @@ export default function NavBar() {
     };
 
     const navItems = [
+        { href: '/dashboard', label: 'Dashboard', color: '--primary' },
         { href: '/strategy', label: dict.nav.strategy, color: '--module-strategy' },
         { href: '/capacities', label: dict.nav.capacities, color: '--module-capacities' },
         { href: '/analytics', label: dict.nav.analytics || 'Analytics', color: '--module-analytics' },

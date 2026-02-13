@@ -1,7 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-const targetEmail = 'sebastiangalindo09@gmail.com';
+const targetEmail = 'juan.galindob@majiddigital.com';
 
 async function main() {
     console.log(`Searching for user with email: ${targetEmail}`);

@@ -1117,3 +1117,258 @@ export async function updateWeightsBatch(updates: { type: 'OBJECTIVE' | 'KR', id
         return { error: 'Failed to update weights' };
     }
 }
+
+// ============================================================================
+// DASHBOARD METRICS (Managerial Module)
+// ============================================================================
+
+export type DashboardTrafficLight = 'GREEN' | 'YELLOW' | 'RED' | 'GRAY';
+
+export interface DashboardMetric {
+    id: string;
+    title: string;
+    progress: number; // 0-100 (Real)
+    expectedProgress: number; // 0-100 (Time-based)
+    trafficLight: DashboardTrafficLight;
+    type: 'MEGA' | 'OBJECTIVE' | 'KR';
+    children?: DashboardMetric[];
+}
+
+export interface GlobalDashboardData {
+    globalScore: number;
+    globalTrafficLight: DashboardTrafficLight;
+    megas: DashboardMetric[];
+}
+
+export async function getDashboardMetrics(startDate?: Date | string, endDate?: Date | string): Promise<GlobalDashboardData> {
+    const tenantId = await getTenantId();
+
+    // Standardize dates
+    const start = startDate ? new Date(startDate) : new Date(new Date().getFullYear(), 0, 1); // Jan 1st current year
+    const end = endDate ? new Date(endDate) : new Date(new Date().getFullYear(), 11, 31); // Dec 31st current year
+    const now = new Date();
+
+    // Fetch Full Tree
+    const purpose = await prisma.purpose.findFirst({
+        where: { tenantId, type: 'COMPANY' },
+        include: {
+            megas: {
+                include: {
+                    objectives: {
+                        include: {
+                            keyResults: true,
+                            childObjectives: {
+                                include: {
+                                    keyResults: true,
+                                    childObjectives: {
+                                        include: { keyResults: true } // Support up to 3 levels of objectives
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    if (!purpose) {
+        return { globalScore: 0, globalTrafficLight: 'GRAY', megas: [] };
+    }
+
+    // --- Helper Functions ---
+
+    const calculateExpectedProgress = (itemStart: Date | null, itemEnd: Date | null): number => {
+        // If dates are missing, fallback to the global filter range or current year
+        const s = itemStart ? new Date(itemStart) : start;
+        const e = itemEnd ? new Date(itemEnd) : end;
+
+        if (now < s) return 0;
+        if (now > e) return 100;
+
+        const totalDuration = e.getTime() - s.getTime();
+        const elapsed = now.getTime() - s.getTime();
+
+        if (totalDuration <= 0) return 100; // Should not happen, but safe guard
+
+        return Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
+    };
+
+    const getTrafficLight = (real: number, expected: number): DashboardTrafficLight => {
+        if (expected === 0) return 'GRAY'; // Too early to tell
+        const ratio = real / expected;
+        
+        if (ratio >= 0.9) return 'GREEN';
+        if (ratio >= 0.7) return 'YELLOW';
+        return 'RED';
+    };
+
+    const isKRInDateRange = (kr: any) => {
+        // Convert KR Periodicity Ints to approximate Dates or use direct Logic
+        // Logic: Overlap. (StartA <= EndB) and (EndA >= StartB)
+        // KR Start
+        const krStartYear = kr.startYear ?? new Date().getFullYear();
+        const krStartQuarter = kr.startQuarter ?? 1;
+         // Approximate start date of quarter: (Q-1)*3 months
+        const krStartDate = new Date(krStartYear, (krStartQuarter - 1) * 3, 1);
+
+        // KR End
+        const krEndYear = kr.endYear ?? new Date().getFullYear();
+        const krEndQuarter = kr.endQuarter ?? 4;
+        // Approximate end date of quarter: Q*3 month, last day
+        const krEndDate = new Date(krEndYear, (krEndQuarter * 3), 0); // Day 0 of next month is last day of previous
+
+        return krStartDate <= end && krEndDate >= start;
+    };
+
+    // --- Processing ---
+
+    // Process KRs
+    const processKR = (kr: any): DashboardMetric | null => {
+        if (!isKRInDateRange(kr)) return null;
+
+        // Start/End dates logic for Expected Progress
+        const krStartYear = kr.startYear ?? new Date().getFullYear();
+        const krStartQuarter = kr.startQuarter ?? 1;
+        const krStartDate = new Date(krStartYear, (krStartQuarter - 1) * 3, 1);
+
+        const krEndYear = kr.endYear ?? new Date().getFullYear();
+        const krEndQuarter = kr.endQuarter ?? 4;
+        const krEndDate = new Date(krEndYear, (krEndQuarter * 3), 0);
+
+        const real = Math.min(100, Math.max(0, (kr.currentValue / kr.targetValue) * 100)); // Cap at 100? or more? Plan said 100.
+        const expected = calculateExpectedProgress(krStartDate, krEndDate);
+
+        return {
+            id: kr.id,
+            title: kr.statement,
+            progress: real,
+            expectedProgress: expected,
+            trafficLight: getTrafficLight(real, expected),
+            type: 'KR'
+        };
+    };
+
+    // Process Objectives (Recursive)
+    const processObjective = (obj: any): DashboardMetric | null => {
+        // 1. Process Child KRs
+        const krMetrics: DashboardMetric[] = [];
+        let totalKRWeight = 0;
+        let weightedKRProgress = 0;
+        let weightedKRExpected = 0;
+
+        if (obj.keyResults) {
+            for (const kr of obj.keyResults) {
+                const metric = processKR(kr);
+                if (metric) {
+                    krMetrics.push(metric);
+                    const w = kr.weight || 1; // Default weight 1 if 0/null to avoid division by zero if all are 0
+                    totalKRWeight += w;
+                    weightedKRProgress += metric.progress * w;
+                    weightedKRExpected += metric.expectedProgress * w;
+                }
+            }
+        }
+
+        // 2. Process Child Objectives
+        const objMetrics: DashboardMetric[] = [];
+        let totalObjWeight = 0;
+        let weightedObjProgress = 0;
+        let weightedObjExpected = 0;
+
+        if (obj.childObjectives) {
+            for (const child of obj.childObjectives) {
+                const metric = processObjective(child);
+                if (metric) {
+                    objMetrics.push(metric);
+                    const w = child.weight || 1; 
+                    totalObjWeight += w;
+                    weightedObjProgress += metric.progress * w;
+                    weightedObjExpected += metric.expectedProgress * w;
+                }
+            }
+        }
+
+        // If no relevant children, this objective is not in range/active
+        if (krMetrics.length === 0 && objMetrics.length === 0) return null;
+
+        // Combine KRs and Child Objectives
+        // Assumption: Weights are relative within the Objective container. 
+        // We sum all weights (KRs + ChildObjs) to normalize? 
+        // Or usually ChildObjs replace KRs? The schema allows mixed.
+        // Let's treat them as siblings in weight calculation.
+
+        const totalWeight = totalKRWeight + totalObjWeight;
+        const totalProgress = (weightedKRProgress + weightedObjProgress) / (totalWeight || 1);
+        const totalExpected = (weightedKRExpected + weightedObjExpected) / (totalWeight || 1);
+        
+        return {
+            id: obj.id,
+            title: obj.statement,
+            progress: totalProgress,
+            expectedProgress: totalExpected,
+            trafficLight: getTrafficLight(totalProgress, totalExpected),
+            type: 'OBJECTIVE',
+            children: [...krMetrics, ...objMetrics]
+        };
+    };
+
+    // Process Megas
+    const megaMetrics: DashboardMetric[] = [];
+    let totalMegaScore = 0;
+
+    for (const mega of purpose.megas) {
+        let weightedProgress = 0;
+        let weightedExpected = 0;
+        let totalWeight = 0;
+        const childrenMetrics: DashboardMetric[] = [];
+
+        // Megas only have Objectives (Top Level)
+        for (const obj of mega.objectives) {
+            // Check if top level obj has parent (should be null based on query)
+            if (obj.parentObjectiveId) continue; 
+
+            const metric = processObjective(obj);
+            if (metric) {
+                childrenMetrics.push(metric);
+                const w = obj.weight || 1;
+                totalWeight += w;
+                weightedProgress += metric.progress * w;
+                weightedExpected += metric.expectedProgress * w;
+            }
+        }
+
+        // If Mega has no active objectives in range, skip or show 0?
+        // Show 0 but mark as inactive? Let's just calculate what we have.
+        
+        const finalProgress = totalWeight > 0 ? weightedProgress / totalWeight : 0;
+        const finalExpected = totalWeight > 0 ? weightedExpected / totalWeight : 0;
+
+        if (childrenMetrics.length > 0) { // Only add if it has content
+            megaMetrics.push({
+                id: mega.id,
+                title: mega.statement,
+                progress: finalProgress,
+                expectedProgress: finalExpected,
+                trafficLight: getTrafficLight(finalProgress, finalExpected),
+                type: 'MEGA',
+                children: childrenMetrics
+            });
+            totalMegaScore += finalProgress;
+        }
+    }
+
+    // Global Score
+    // Average of Megas (Assumption: Megas range from Equal importance)
+    const globalScore = megaMetrics.length > 0 ? totalMegaScore / megaMetrics.length : 0;
+    
+    // Global Traffic Light needs an aggregate Expected.
+    const totalGlobalExpected = megaMetrics.reduce((acc, curr) => acc + curr.expectedProgress, 0);
+    const avgGlobalExpected = megaMetrics.length > 0 ? totalGlobalExpected / megaMetrics.length : 0;
+
+    return {
+        globalScore,
+        globalTrafficLight: getTrafficLight(globalScore, avgGlobalExpected),
+        megas: megaMetrics
+    };
+}

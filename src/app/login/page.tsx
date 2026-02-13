@@ -12,6 +12,7 @@ import { useEffect } from 'react';
 export default function LoginPage() {
     const { isLoading } = useAuth();
     const [error, setError] = useState('');
+    const [inviteError, setInviteError] = useState('');
     const [loading, setLoading] = useState(false);
     const [isProcessingInvite, setIsProcessingInvite] = useState(false);
     const router = useRouter();
@@ -37,6 +38,16 @@ export default function LoginPage() {
             } else if (initialHash.includes('type=invite') || initialHash.includes('type=recovery')) {
                 // Si no hay sesión pero hay hash de invitación, mostrar loading mientras supabase procesa
                 setIsProcessingInvite(true);
+
+                // Timeout de seguridad: si en 8 segundos no hay sesión, asumir fallo
+                setTimeout(() => {
+                    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+                        if (!currentSession) {
+                            setIsProcessingInvite(false);
+                            setInviteError('No se pudo verificar la invitación automáticamente. El enlace puede haber expirado o ya fue utilizado.');
+                        }
+                    });
+                }, 8000);
             }
         });
 
@@ -309,6 +320,54 @@ export default function LoginPage() {
                                     100% { transform: rotate(360deg); }
                                 }
                             `}</style>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                <AnimatePresence>
+                    {inviteError && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            style={{
+                                position: 'absolute',
+                                top: 0, left: 0, right: 0, bottom: 0,
+                                background: 'rgba(4, 7, 13, 0.95)',
+                                zIndex: 30,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: 'white',
+                                padding: '2rem',
+                                textAlign: 'center'
+                            }}
+                        >
+                            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+                            <h3 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1rem' }}>Enlace no verificado</h3>
+                            <p style={{ fontSize: '1rem', color: '#cbd5e1', marginBottom: '2rem', maxWidth: '400px' }}>
+                                {inviteError}
+                            </p>
+                            <button
+                                onClick={() => {
+                                    setInviteError('');
+                                    window.location.hash = ''; // Limpiar hash para evitar re-trigger
+                                    window.location.reload();
+                                }}
+                                className="btn-primary"
+                                style={{
+                                    padding: '0.75rem 1.5rem',
+                                    background: 'white',
+                                    color: '#0f172a',
+                                    borderRadius: '8px',
+                                    fontWeight: 600,
+                                    border: 'none',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Volver al Inicio
+                            </button>
                         </motion.div>
                     )}
                 </AnimatePresence>

@@ -12,13 +12,30 @@ async function main() {
       LANGUAGE plpgsql
       SECURITY DEFINER SET search_path = public
       AS $$
+      DECLARE
+        default_tenant_id text;
       BEGIN
+        -- Intentar obtener tenant_id de los metadatos
+        default_tenant_id := (new.raw_user_meta_data->>'tenant_id')::text;
+
+        -- Si no hay metadatos, buscar el primer tenant disponible (Fallback para creación manual)
+        IF default_tenant_id IS NULL THEN
+          SELECT "id" INTO default_tenant_id FROM public."Tenant" LIMIT 1;
+        END IF;
+
+        -- Si aún es null (no existe ningun tenant), crear uno por defecto (Opcional, pero seguro)
+        IF default_tenant_id IS NULL THEN
+           INSERT INTO public."Tenant" ("id", "name", "domain", "updatedAt") 
+           VALUES (gen_random_uuid(), 'Default Organization', 'default.com', NOW())
+           RETURNING "id" INTO default_tenant_id;
+        END IF;
+
         INSERT INTO public."User" ("id", "email", "name", "tenantId", "role", "createdAt", "updatedAt")
         VALUES (
           new.id,
           new.email,
-          COALESCE(new.raw_user_meta_data->>'full_name', new.email),
-          (new.raw_user_meta_data->>'tenant_id')::text,
+          COALESCE(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
+          default_tenant_id,
           'USER',
           NOW(),
           NOW()

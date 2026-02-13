@@ -29,6 +29,13 @@ export default function HomePageClient({ purpose }: HomePageClientProps) {
 
     const modules = [
         {
+            title: 'Dashboard',
+            href: '/dashboard',
+            icon: '📈',
+            description: 'Monitor global strategy health, KR compliance, and Mega progress.',
+            color: 'hsl(var(--secondary))'
+        },
+        {
             title: dict.nav.strategy,
             href: '/strategy',
             icon: '🎯',

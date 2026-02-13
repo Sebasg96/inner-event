@@ -64,6 +64,9 @@ export default function UpdatePasswordPage() {
                 width: '100%',
                 maxWidth: '400px'
             }}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
+                    <img src="/pragma-logo.png" alt="Pragma" style={{ height: '60px', width: 'auto' }} />
+                </div>
                 <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem', color: '#0f172a', textAlign: 'center' }}>
                     Establecer Contraseña
                 </h1>
@@ -81,7 +84,7 @@ export default function UpdatePasswordPage() {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
-                            style={{ width: '100%', padding: '0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px' }}
+                            style={{ width: '100%', padding: '0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a' }}
                             placeholder="********"
                         />
                     </div>
@@ -95,7 +98,7 @@ export default function UpdatePasswordPage() {
                             value={confirmPassword}
                             onChange={(e) => setConfirmPassword(e.target.value)}
                             required
-                            style={{ width: '100%', padding: '0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px' }}
+                            style={{ width: '100%', padding: '0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', color: '#0f172a' }}
                             placeholder="********"
                         />
                     </div>
@@ -126,6 +129,13 @@ export default function UpdatePasswordPage() {
                     </button>
                 </form>
             </div>
-        </div>
+
+            <style jsx global>{`
+                input::placeholder {
+                    color: #000 !important;
+                    opacity: 1;
+                }
+            `}</style>
+        </div >
     );
 }
