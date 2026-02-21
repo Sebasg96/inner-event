@@ -1,3 +1,4 @@
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -103,13 +104,16 @@
 html {
   font-size: 15px;
   /* Slightly larger base for modern feel */
+  overscroll-behavior: none;
 }
 
 body {
-  background-color: hsl(var(--bg-app));
-  color: hsl(var(--text-body));
+  background: hsl(var(--bg-app));
+  color: hsl(var(--text-main));
   min-height: 100vh;
+  font-weight: 400;
   line-height: 1.6;
+  overscroll-behavior: none;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -120,14 +124,12 @@ a {
 
 /* Global Utility Classes */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(var(--glass-blur));
   -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 24px;
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-  color: white !important;
-  /* Garantizar texto blanco en fondos oscuros */
 }
 
 .tech-grid {
@@ -211,25 +213,25 @@ textarea:focus {
   color: #ffffff;
 }
 
-/* Modern Headings */
-h1,
-h2,
-h3,
-h4 {
+/* Modern Headings — scoped to white-surface only so they don't override Tailwind utilities */
+.white-surface h1,
+.white-surface h2,
+.white-surface h3,
+.white-surface h4 {
   letter-spacing: -0.025em;
   font-weight: 700;
   line-height: 1.2;
 }
 
-h1 {
+.white-surface h1 {
   font-size: 2.5rem;
 }
 
-h2 {
+.white-surface h2 {
   font-size: 2rem;
 }
 
-h3 {
+.white-surface h3 {
   font-size: 1.5rem;
 }
 

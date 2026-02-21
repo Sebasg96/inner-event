@@ -29,13 +29,6 @@ export default function HomePageClient({ purpose }: HomePageClientProps) {
 
     const modules = [
         {
-            title: 'Dashboard',
-            href: '/dashboard',
-            icon: '📈',
-            description: 'Monitor global strategy health, KR compliance, and Mega progress.',
-            color: 'hsl(var(--secondary))'
-        },
-        {
             title: dict.nav.strategy,
             href: '/strategy',
             icon: '🎯',
@@ -76,6 +69,13 @@ export default function HomePageClient({ purpose }: HomePageClientProps) {
             icon: '📅',
             description: 'Seguimiento de OKRs, puntos tratados y compromisos con IA.',
             color: 'hsl(var(--accent))'
+        },
+        {
+            title: 'Dashboard',
+            href: '/dashboard',
+            icon: '📈',
+            description: 'Monitor global strategy health, KR compliance, and Mega progress.',
+            color: 'hsl(var(--secondary))'
         }
     ];
 

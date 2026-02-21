@@ -28,11 +28,18 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     const dashboardData = await getDashboardMetrics(start, end);
 
     return (
-        <main className="min-h-screen bg-slate-50">
-            <div className="max-w-[1600px] mx-auto p-6 space-y-8">
-                <header className="text-center">
-                    <h1 className="text-3xl font-bold text-slate-900">Panel de Control Estratégico</h1>
-                    <p className="text-slate-500">Monitoreo de cumplimiento y salud de la estrategia.</p>
+        <main className="min-h-screen relative overflow-hidden" style={{ background: 'hsl(var(--bg-app))' }}>
+            {/* Tech Grid Background */}
+            <div className="tech-grid opacity-20" />
+
+            <div className="relative z-10 max-w-[1600px] mx-auto p-6 space-y-8">
+                <header className="text-center space-y-3">
+                    <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">
+                        Panel de Control Estratégico
+                    </h1>
+                    <p className="text-slate-300/70 max-w-2xl mx-auto">
+                        Monitoreo en tiempo real de cumplimiento, salud estratégica y focos de riesgo.
+                    </p>
                 </header>
 
                 <DashboardFilters />
