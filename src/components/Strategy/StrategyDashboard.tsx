@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { createPurpose, createAreaPurpose, createMega, createObjective, createKeyResult, updateKeyResult, updatePurpose, updateMega, updateObjectiveTitle, createOrganizationalValue, deleteOrganizationalValue, deleteObjective, updateObjectiveOwner, updateKeyResultOwner, deleteKeyResult } from '@/app/actions';
+import { createPurpose, createAreaPurpose, createMega, createObjective, createKeyResult, updateKeyResult, updatePurpose, updateMega, updateObjectiveTitle, createOrganizationalValue, deleteOrganizationalValue, createStrategicAxis, deleteStrategicAxis, deleteObjective, updateObjectiveOwner, updateObjectiveStrategicAxis, updateKeyResultOwner, deleteKeyResult } from '@/app/actions';
 import styles from '@/app/strategy/page.module.css';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Trash2, ChevronRight, ChevronDown } from 'lucide-react';
@@ -14,6 +14,7 @@ import StrategyCascade from './StrategyCascade';
 import KeyResultCreator from './KeyResultCreator';
 import KeyResultProgressModal from './KeyResultProgressModal';
 import WeightManagement from './WeightManagement';
+import MetasSection from '@/components/Dashboard/v3/MetasSection';
 
 // Define flexible interfaces for the nested strategy data
 interface Initiative {
@@ -37,12 +38,14 @@ interface KeyResult {
     trackingType: 'PERCENTAGE' | 'UNITS';
     updates?: any[];
     weight: number;
+    updatePeriodicity?: string | null;
     owner?: { id: string, name: string, lastName: string | null } | null;
 }
 
 interface Objective {
     id: string;
     statement: string;
+    strategicAxisId?: string | null;
     keyResults: KeyResult[];
     childObjectives?: any[];
     weight: number;
@@ -72,15 +75,21 @@ interface OrganizationalValue {
     statement: string;
 }
 
+interface StrategicAxis {
+    id: string;
+    statement: string;
+}
+
 type StrategyDashboardProps = {
     purpose: Purpose | null;
     areaPurpose?: AreaPurpose | null;
     analysisData?: Record<string, any>; // Keeping loose for analysis blob
     organizationalValues?: OrganizationalValue[];
+    strategicAxes?: StrategicAxis[];
     tenantUsers?: { id: string, name: string, lastName: string | null, role: string, area: string | null }[];
 };
 
-export default function StrategyDashboard({ purpose, areaPurpose, analysisData, organizationalValues = [], tenantUsers = [] }: StrategyDashboardProps) {
+export default function StrategyDashboard({ purpose, areaPurpose, analysisData, organizationalValues = [], strategicAxes = [], tenantUsers = [] }: StrategyDashboardProps) {
     const { dict } = useLanguage();
     const router = useRouter(); // Initialize router for redirects
     // Removed manual editing state
@@ -494,6 +503,48 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                         )}
                     </section>
 
+                    {/* Strategic Axes Section */}
+                    <section className={`glass-panel ${styles.section}`} style={{ border: theme.border, boxShadow: theme.glow, marginTop: '2rem' }}>
+                        <h2 className={styles.sectionTitle} style={{ color: theme.color }}>EJES ESTRATÉGICOS</h2>
+
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+                            {strategicAxes.map((axis) => (
+                                <div key={axis.id} style={{
+                                    background: 'rgba(255,255,255,0.8)',
+                                    border: `1px solid ${theme.color}`,
+                                    borderRadius: '20px',
+                                    padding: '0.5rem 1rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    fontSize: '0.9rem',
+                                    fontWeight: 500
+                                }}>
+                                    <span>{axis.statement}</span>
+                                    <form action={async () => { await deleteStrategicAxis(axis.id); }}>
+                                        <button type="submit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '1rem', padding: 0 }}>×</button>
+                                    </form>
+                                </div>
+                            ))}
+                        </div>
+
+                        {strategicAxes.length < 5 && (
+                            <form action={createStrategicAxis} style={{ display: 'flex', gap: '0.5rem', maxWidth: '400px' }}>
+                                <input
+                                    name="statement"
+                                    placeholder="Agregar nuevo eje estratégico..."
+                                    required
+                                    maxLength={100}
+                                    style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
+                                />
+                                <button type="submit" className="btn-secondary" style={{ padding: '0.5rem 1rem' }}>+</button>
+                            </form>
+                        )}
+                    </section>
+
+                    {/* Metas Estratégicas Section */}
+                    <MetasSection themeColor={theme.color} />
+
                     {/* Megas Section */}
                     {purpose && (
                         <section className={`glass-panel ${styles.section}`} style={{ border: theme.border, boxShadow: theme.glow, marginTop: '2rem' }}>
@@ -611,6 +662,25 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                                                                 color: 'black'
                                                             }}
                                                         />
+
+                                                        {/* Strategic Axis Selector */}
+                                                        <select
+                                                            name="strategicAxisId"
+                                                            style={{
+                                                                padding: '0.7rem',
+                                                                borderRadius: '8px',
+                                                                border: '1px solid #cbd5e1',
+                                                                fontSize: '0.9rem',
+                                                                background: 'white',
+                                                                color: '#475569'
+                                                            }}
+                                                        >
+                                                            <option value="none">Sin Eje Estratégico</option>
+                                                            {strategicAxes.map(axis => (
+                                                                <option key={axis.id} value={axis.id}>{axis.statement}</option>
+                                                            ))}
+                                                        </select>
+
                                                         <button
                                                             type="submit"
                                                             style={{
@@ -695,6 +765,43 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                                                                                 }} title={`Progreso: ${progress}%`} />
                                                                             );
                                                                         })()}
+                                                                    </div>
+
+                                                                    {/* Strategic Axis Mini-UI */}
+                                                                    <div style={{ position: 'relative' }}>
+                                                                        <select
+                                                                            value={obj.strategicAxisId || "none"}
+                                                                            onChange={async (e) => {
+                                                                                const newAxisId = e.target.value === "none" ? null : e.target.value;
+                                                                                await updateObjectiveStrategicAxis(obj.id, newAxisId);
+                                                                            }}
+                                                                            style={{
+                                                                                appearance: 'none',
+                                                                                backgroundColor: obj.strategicAxisId ? '#f0fdf4' : 'transparent',
+                                                                                border: obj.strategicAxisId ? '1px solid #bbf7d0' : '1px dashed #cbd5e1',
+                                                                                borderRadius: '20px',
+                                                                                padding: '2px 8px',
+                                                                                paddingRight: '20px',
+                                                                                fontSize: '0.75rem',
+                                                                                color: obj.strategicAxisId ? '#15803d' : '#94a3b8',
+                                                                                cursor: 'pointer',
+                                                                                maxWidth: '120px',
+                                                                                whiteSpace: 'nowrap',
+                                                                                overflow: 'hidden',
+                                                                                textOverflow: 'ellipsis',
+                                                                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                                                                                backgroundRepeat: 'no-repeat',
+                                                                                backgroundPosition: 'right 4px center'
+                                                                            }}
+                                                                            title={obj.strategicAxisId ? `Eje Estratégico: ${strategicAxes.find(a => a.id === obj.strategicAxisId)?.statement || 'Desconocido'}` : "Vincular a Eje Estratégico"}
+                                                                        >
+                                                                            <option value="none">🧭 Eje</option>
+                                                                            {strategicAxes.map(a => (
+                                                                                <option key={a.id} value={a.id}>
+                                                                                    {a.statement}
+                                                                                </option>
+                                                                            ))}
+                                                                        </select>
                                                                     </div>
 
                                                                     {/* Owner Selection Mini-UI */}

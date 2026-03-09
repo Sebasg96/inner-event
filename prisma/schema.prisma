@@ -33,16 +33,17 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users       User[]
-  teams       Team[]
-  purposes    Purpose[]
-  megas       Mega[]
-  objectives  Objective[]
-  keyResults  KeyResult[]
-  initiatives Initiative[]
-  kanbanTasks KanbanTask[]
-  rituals     Ritual[]
-  values      OrganizationalValue[]
+  users         User[]
+  teams         Team[]
+  purposes      Purpose[]
+  megas         Mega[]
+  objectives    Objective[]
+  keyResults    KeyResult[]
+  initiatives   Initiative[]
+  kanbanTasks   KanbanTask[]
+  rituals       Ritual[]
+  values        OrganizationalValue[]
+  strategicAxes StrategicAxis[]
 
   // Emergent Strategy
   hardChoices             HardChoice[]
@@ -161,7 +162,7 @@ model Purpose {
   statement String // "Para Qué"
   type      PurposeType @default(COMPANY) // New
 
-  area      String? // New: Filter by area for shared views
+  area String? // New: Filter by area for shared views
 
   ownerId String? // New
   owner   User?   @relation(fields: [ownerId], references: [id])
@@ -210,7 +211,7 @@ model Objective {
   parentObjective   Objective?  @relation("RecursiveObjectives", fields: [parentObjectiveId], references: [id])
   childObjectives   Objective[] @relation("RecursiveObjectives")
 
-  area      String? // New: Filter by area for shared views
+  area String? // New: Filter by area for shared views
 
   ownerId String? // New
   owner   User?   @relation(fields: [ownerId], references: [id])
@@ -220,9 +221,12 @@ model Objective {
 
   keyResults KeyResult[]
 
+  strategicAxisId String?
+  strategicAxis   StrategicAxis? @relation(fields: [strategicAxisId], references: [id])
+
   strategicAccess StrategicAccess[]
 
-  weight      Float   @default(1.0)
+  weight Float @default(1.0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -257,7 +261,7 @@ model KeyResult {
   updates     KeyResultUpdate[]
 
   updatePeriodicity UpdatePeriodicity?
-  weight            Float             @default(1.0)
+  weight            Float              @default(1.0)
 
   // Periodicity
   startYear    Int?
@@ -454,6 +458,19 @@ model OrganizationalValue {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model StrategicAxis {
+  id        String @id @default(uuid())
+  statement String
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  objectives Objective[]
 }
 
 enum TrackingType {

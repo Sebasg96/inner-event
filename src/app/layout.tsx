@@ -9,7 +9,7 @@ import PragmaIA from "@/components/PragmaIA/PragmaIA";
 const outfit = Outfit({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Strategic Management SaaS",
+  title: "PRAGMA Strategic Management",
   description: "B2B SaaS for Strategy, OKRs, and Performance",
 };
 

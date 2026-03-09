@@ -7,14 +7,21 @@ import NavBar from '@/components/NavBar';
 import { useModuleTheme } from '@/lib/hooks/useModuleTheme';
 import Link from 'next/link';
 
-export default function MetricsClient() {
+interface MetricsProps {
+    data: {
+        adherenceScore: number;
+        churnRisk: string;
+        maturityLevel: number;
+        behaviorPatterns: { id: string, title: string, description: string }[];
+        suggestions: string[];
+    }
+}
+
+export default function MetricsClient({ data }: MetricsProps) {
     const { dict } = useLanguage();
     const theme = useModuleTheme();
 
-    // Mocked Data for Demo
-    const adherenceScore = 78; // %
-    const churnRisk = "Bajo"; // Bajo, Medio, Alto
-    const maturityLevel = 3; // 1-5
+    const { adherenceScore, churnRisk, maturityLevel, behaviorPatterns, suggestions } = data;
 
     return (
         <div className={styles.container}>
@@ -47,8 +54,8 @@ export default function MetricsClient() {
                             <span style={{ position: 'absolute', fontSize: '1.5rem', fontWeight: 'bold' }}>{adherenceScore}%</span>
                         </div>
                         <div>
-                            <div style={{ fontSize: '0.9rem' }}>Logins Semanales: <strong>4.2</strong> (Promedio)</div>
-                            <div style={{ fontSize: '0.9rem', marginTop: '0.5rem' }}>Updates OKR: <strong>85%</strong> a tiempo</div>
+                            <div style={{ fontSize: '0.9rem' }}>Score de Participación</div>
+                            <div style={{ fontSize: '0.9rem', marginTop: '0.5rem', color: 'var(--text-muted)' }}>Métrica Evaluada por IA</div>
                         </div>
                     </div>
                 </div>
@@ -59,14 +66,12 @@ export default function MetricsClient() {
                     <p style={{ color: 'var(--text-muted)' }}>¿Cómo interactúa tu equipo con la estrategia?</p>
 
                     <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.5)', borderRadius: '8px' }}>
-                            <strong>🗓️ "The Friday Rush"</strong>
-                            <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>El 60% de las actualizaciones ocurren los viernes entre 3pm y 5pm.</p>
-                        </div>
-                        <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.5)', borderRadius: '8px' }}>
-                            <strong>📝 "Detail Oriented"</strong>
-                            <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>Las descripciones de iniciativas tienen un promedio de 45 palabras (Alto).</p>
-                        </div>
+                        {behaviorPatterns.map(pattern => (
+                            <div key={pattern.id} style={{ padding: '1rem', background: 'rgba(255,255,255,0.5)', borderRadius: '8px' }}>
+                                <strong>{pattern.title}</strong>
+                                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>{pattern.description}</p>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
@@ -76,10 +81,10 @@ export default function MetricsClient() {
                     <p style={{ color: 'var(--text-muted)' }}>Probabilidad de desconexión estratégica.</p>
 
                     <div style={{ marginTop: '2rem', textAlign: 'center' }}>
-                        <div style={{ fontSize: '3rem', fontWeight: 'bold', color: churnRisk === 'Bajo' ? 'var(--success)' : 'var(--danger)' }}>
+                        <div style={{ fontSize: '3rem', fontWeight: 'bold', color: churnRisk === 'Bajo' ? 'var(--success)' : (churnRisk === 'Alto' ? 'var(--danger)' : 'var(--warning)') }}>
                             {churnRisk}
                         </div>
-                        <p>Solo 2 usuarios inactivos en los últimos 14 días.</p>
+                        <p style={{ color: 'var(--text-muted)' }}>Evaluación algorítmica de la cadencia actual.</p>
                     </div>
                 </div>
 
@@ -100,19 +105,19 @@ export default function MetricsClient() {
                             </div>
                         ))}
                     </div>
-                    <div style={{ textAlign: 'center', marginTop: '1rem', fontWeight: 'bold' }}>Nivel 3: Definido</div>
-                    <div style={{ textAlign: 'center', fontSize: '0.9rem', color: 'var(--text-muted)' }}>Buena cadencia, pero falta vincular más KRs a resultados numéricos.</div>
+                    <div style={{ textAlign: 'center', marginTop: '1rem', fontWeight: 'bold' }}>Nivel {maturityLevel}</div>
+                    <div style={{ textAlign: 'center', fontSize: '0.9rem', color: 'var(--text-muted)' }}>Analizado por PRAGMA AI basado en iniciativas y KRs.</div>
                 </div>
 
             </div>
 
             {/* Suggestions */}
             <div className="glass-panel" style={{ marginTop: '2rem', padding: '2rem', background: 'linear-gradient(135deg, rgba(255,255,255,0.8), rgba(240,240,255,0.9))' }}>
-                <h3 style={{ margin: 0, fontSize: '1.3rem', marginBottom: '1rem' }}>💡 Sugerencias de Mejora</h3>
+                <h3 style={{ margin: 0, fontSize: '1.3rem', marginBottom: '1rem' }}>💡 Sugerencias de Mejora Estratégica</h3>
                 <ul style={{ paddingLeft: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-                    <li>Incentiva las actualizaciones a mitad de semana para evitar la congestión de los viernes.</li>
-                    <li>Revisa los 2 usuarios inactivos para prevenir su desconexión total.</li>
-                    <li>Intenta que el 100% de los KRs tengan una métrica numérica clara para subir al Nivel 4 de madurez.</li>
+                    {suggestions.map((suggestion, idx) => (
+                        <li key={idx}>{suggestion}</li>
+                    ))}
                 </ul>
             </div>
         </div>

@@ -252,11 +252,18 @@ export async function createObjective(formData: FormData) {
     const tenantId = await getTenantId();
     const statement = formData.get('statement') as string;
     const megaId = formData.get('megaId') as string;
+    const strategicAxisId = formData.get('strategicAxisId') as string | null;
 
     await prisma.objective.create({
-        data: { statement, megaId, tenantId },
+        data: { 
+            statement, 
+            megaId, 
+            tenantId,
+            strategicAxisId: strategicAxisId === "none" ? null : strategicAxisId
+        },
     });
     revalidatePath('/strategy');
+    revalidatePath('/strategy/planning');
 }
 
 export async function createKeyResult(formData: FormData) {
@@ -320,9 +327,11 @@ export async function updateKeyResult(id: string, formData: FormData) {
             statement,
             targetValue,
             metricUnit,
+            ...(formData.has('updatePeriodicity') ? { updatePeriodicity: (formData.get('updatePeriodicity') as any) || null } : {}),
         },
     });
     revalidatePath('/strategy/planning');
+    revalidatePath('/');
 }
 
 export async function deleteKeyResult(id: string) {
@@ -584,6 +593,17 @@ export async function updateObjectiveOwner(objectiveId: string, ownerId: string 
     revalidatePath('/');
 }
 
+export async function updateObjectiveStrategicAxis(objectiveId: string, strategicAxisId: string | null) {
+    const tenantId = await getTenantId();
+    await prisma.objective.update({
+        where: { id: objectiveId, tenantId },
+        data: { strategicAxisId: strategicAxisId === "none" ? null : strategicAxisId }
+    });
+    revalidatePath('/strategy');
+    revalidatePath('/strategy/planning');
+    revalidatePath('/');
+}
+
 export async function deleteMega(id: string) {
     try {
         await prisma.$transaction(async (tx) => {
@@ -781,6 +801,38 @@ export async function getTenantUsers() {
 
 export async function deleteOrganizationalValue(id: string) {
     await prisma.organizationalValue.delete({
+        where: { id }
+    });
+    revalidatePath('/strategy/planning');
+}
+
+// --- Strategic Axes (Ejes Estratégicos) ---
+
+export async function createStrategicAxis(formData: FormData) {
+    const statement = formData.get('statement') as string;
+    const cookieStore = await cookies();
+    const tenantId = cookieStore.get('inner_event_tenant_id')?.value;
+
+    if (!tenantId) {
+        throw new Error('No tenant found');
+    }
+
+    if (!statement) {
+        throw new Error('Statement is required');
+    }
+
+    await prisma.strategicAxis.create({
+        data: {
+            statement,
+            tenantId
+        }
+    });
+
+    revalidatePath('/strategy/planning');
+}
+
+export async function deleteStrategicAxis(id: string) {
+    await prisma.strategicAxis.delete({
         where: { id }
     });
     revalidatePath('/strategy/planning');
@@ -1084,13 +1136,11 @@ export async function getUserNotifications() {
 }
 
 export async function updateKeyResultPeriodicity(keyResultId: string, periodicity: any) {
-    if (!periodicity) return;
-    
     await prisma.keyResult.update({
         where: { id: keyResultId },
         data: { updatePeriodicity: periodicity }
     });
-    revalidatePath('/strategy');
+    revalidatePath('/strategy/planning');
     revalidatePath('/');
 }
 

@@ -61,6 +61,7 @@ export default async function PlanningPage() {
                         select: {
                             id: true,
                             statement: true,
+                            strategicAxisId: true,
                             weight: true,
                             owner: true,
                             keyResults: {
@@ -76,6 +77,7 @@ export default async function PlanningPage() {
                                     denominatorValue: true,
                                     numeratorLabel: true,
                                     denominatorLabel: true,
+                                    updatePeriodicity: true,
 
                                     owner: true,
                                     initiatives: {
@@ -92,6 +94,7 @@ export default async function PlanningPage() {
                                 select: {
                                     id: true,
                                     statement: true,
+                                    strategicAxisId: true,
                                     weight: true,
                                     owner: true,
                                     keyResults: {
@@ -107,6 +110,7 @@ export default async function PlanningPage() {
                                             denominatorValue: true,
                                             numeratorLabel: true,
                                             denominatorLabel: true,
+                                            updatePeriodicity: true,
 
                                             owner: true,
                                             initiatives: { select: { id: true, progress: true, status: true, title: true } },
@@ -121,6 +125,7 @@ export default async function PlanningPage() {
                                         select: {
                                             id: true,
                                             statement: true,
+                                            strategicAxisId: true,
                                             weight: true,
                                             owner: true,
                                             keyResults: {
@@ -136,6 +141,7 @@ export default async function PlanningPage() {
                                                     denominatorValue: true,
                                                     numeratorLabel: true,
                                                     denominatorLabel: true,
+                                                    updatePeriodicity: true,
 
                                                     owner: true,
                                                     initiatives: { select: { id: true, progress: true, status: true, title: true } },
@@ -176,6 +182,10 @@ export default async function PlanningPage() {
         where: { tenantId }
     });
 
+    const strategicAxes = await prisma.strategicAxis.findMany({
+        where: { tenantId }
+    });
+
     const tenantUsers = await prisma.user.findMany({
         where: { tenantId },
         select: { id: true, name: true, lastName: true, email: true, role: true, area: true }
@@ -191,6 +201,7 @@ export default async function PlanningPage() {
                     areaPurpose={areaPurpose}
                     analysisData={analysisData}
                     organizationalValues={organizationalValues}
+                    strategicAxes={strategicAxes}
                     tenantUsers={tenantUsers}
                 />
             </div>
