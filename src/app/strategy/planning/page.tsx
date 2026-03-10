@@ -43,7 +43,7 @@ export default async function PlanningPage() {
     // Get current user for area-based filtering
     const currentUser = await getCurrentUser();
     const userArea = currentUser?.area;
-    const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPERADMIN';
+    const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPERADMIN' || currentUser?.role === 'DIRECTOR';
 
     // Build objective where clause based on simple parent check
     const buildObjectiveWhere = (baseWhere: any = {}) => {

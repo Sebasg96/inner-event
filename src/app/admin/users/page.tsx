@@ -1,5 +1,6 @@
 import { getTenantUsers } from '@/app/actions';
 import AdminUsersClient from './AdminUsersClient';
+import { canManageUsers } from '@/lib/permissions';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { prisma } from '@/lib/prisma'; // Make sure this path is correct
@@ -16,7 +17,7 @@ export default async function AdminUsersPage() {
         select: { role: true }
     });
 
-    if (!dbUser || (dbUser.role !== 'ADMIN' && dbUser.role !== 'SUPERADMIN')) {
+    if (!dbUser || !canManageUsers(dbUser.role)) {
         redirect('/'); // Redirect unauthorized users
     }
 

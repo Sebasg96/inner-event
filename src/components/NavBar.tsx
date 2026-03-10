@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useAuth } from '@/lib/auth/AuthContext';
 import LanguageSwitcher from './LanguageSwitcher';
+import { canAccessModule } from '@/lib/permissions';
 import styles from './NavBar.module.css';
 import NotificationBell from './Notifications/NotificationBell';
 
@@ -29,19 +30,18 @@ export default function NavBar() {
         };
     };
 
-    const navItems = [
-        { href: '/dashboard', label: 'Dashboard', color: '--primary' },
-        { href: '/strategy', label: dict.nav.strategy, color: '--module-strategy' },
-        { href: '/capacities', label: dict.nav.capacities, color: '--module-capacities' },
-        { href: '/analytics', label: dict.nav.analytics || 'Analytics', color: '--module-analytics' },
-        { href: '/reports', label: dict.nav.reports || 'Reports', color: '--module-reports' },
-        { href: '/emergent', label: dict.nav.emergent || 'Emergent', color: '--module-emergent' },
-        { href: '/rituals', label: 'Rituales', color: '--accent' }
+    const allItems = [
+        { href: '/dashboard', label: 'Dashboard', color: '--primary', module: 'dashboard' },
+        { href: '/strategy', label: dict.nav.strategy, color: '--module-strategy', module: 'strategy' },
+        { href: '/capacities', label: dict.nav.capacities, color: '--module-capacities', module: 'capacities' },
+        { href: '/analytics', label: dict.nav.analytics || 'Analytics', color: '--module-analytics', module: 'analytics' },
+        { href: '/reports', label: dict.nav.reports || 'Reports', color: '--module-reports', module: 'reports' },
+        { href: '/emergent', label: dict.nav.emergent || 'Emergent', color: '--module-emergent', module: 'emergent' },
+        { href: '/rituals', label: 'Rituales', color: '--accent', module: 'rituals' },
+        { href: '/admin/users', label: 'Admin', color: '--primary', module: 'admin' },
     ];
 
-    if (user?.role === 'ADMIN' || user?.role === 'SUPERADMIN') {
-        navItems.push({ href: '/admin/users', label: 'Admin', color: '--primary' });
-    }
+    const navItems = allItems.filter(item => canAccessModule(user?.role, item.module));
 
     const toggleMenu = () => setIsOpen(!isOpen);
 

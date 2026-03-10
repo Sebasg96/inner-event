@@ -43,7 +43,7 @@ export default async function ExecutionPage() {
     // Get current user for area-based filtering
     const currentUser = await getCurrentUser();
     const userArea = currentUser?.area;
-    const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPERADMIN';
+    const isAdmin = currentUser?.role === 'ADMIN' || currentUser?.role === 'SUPERADMIN' || currentUser?.role === 'DIRECTOR';
 
     // Fetch Real Data with area filtering
     const [rawInitiatives, krs, tenantUsers] = await Promise.all([

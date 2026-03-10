@@ -25,7 +25,7 @@ export default function AdminUsersClient({ initialUsers }: { initialUsers: User[
         if (!confirm(`Are you sure you want to change this user's role to ${newRole}?`)) return;
 
         try {
-            await updateUserRole(userId, newRole as 'ADMIN' | 'USER');
+            await updateUserRole(userId, newRole as 'ADMIN' | 'DIRECTOR' | 'COLLABORATOR');
             setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
             router.refresh();
         } catch (error) {
@@ -98,14 +98,15 @@ export default function AdminUsersClient({ initialUsers }: { initialUsers: User[
                                             padding: '0.5rem',
                                             borderRadius: '6px',
                                             border: '1px solid #cbd5e1',
-                                            background: user.role === 'ADMIN' || user.role === 'SUPERADMIN' ? '#eff6ff' : 'white',
-                                            color: user.role === 'ADMIN' || user.role === 'SUPERADMIN' ? '#1d4ed8' : '#334155',
+                                            background: user.role === 'ADMIN' || user.role === 'SUPERADMIN' ? '#eff6ff' : user.role === 'DIRECTOR' ? '#fdf4ff' : 'white',
+                                            color: user.role === 'ADMIN' || user.role === 'SUPERADMIN' ? '#1d4ed8' : user.role === 'DIRECTOR' ? '#a855f7' : '#334155',
                                             fontWeight: 500
                                         }}
                                         disabled={user.role === 'SUPERADMIN'}
                                     >
-                                        <option value="USER">USER</option>
                                         <option value="ADMIN">ADMIN</option>
+                                        <option value="DIRECTOR">DIRECTOR</option>
+                                        <option value="COLLABORATOR">COLLABORATOR</option>
                                         <option value="SUPERADMIN" disabled>SUPERADMIN</option>
                                     </select>
                                 </td>
@@ -145,7 +146,8 @@ export default function AdminUsersClient({ initialUsers }: { initialUsers: User[
                             <div>
                                 <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 600, color: '#0f172a' }}>Rol Inicial</label>
                                 <select name="role" style={{ width: '100%', padding: '0.75rem', border: '1px solid #cbd5e1', borderRadius: '8px', background: 'white', color: '#0f172a' }}>
-                                    <option value="USER">User (Empleado)</option>
+                                    <option value="COLLABORATOR">Collaborator (Empleado)</option>
+                                    <option value="DIRECTOR">Director</option>
                                     <option value="ADMIN">Admin</option>
                                 </select>
                             </div>

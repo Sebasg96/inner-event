@@ -72,7 +72,7 @@ model User {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
-  role    UserRole @default(USER) // ADMIN or USER (OKR User)
+  role    UserRole @default(COLLABORATOR)
   jobRole JobRole? // TEAM_LEAD, MEMBER, SUPERVISOR
 
   discProfile DiscProfile?
@@ -99,7 +99,8 @@ model User {
 enum UserRole {
   SUPERADMIN
   ADMIN
-  USER
+  DIRECTOR
+  COLLABORATOR
 }
 
 enum JobRole {

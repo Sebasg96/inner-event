@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { Horizon, KanbanStatus, DiscColor, JobRole } from '@prisma/client';
+import { canEditStrategy, canManageUsers } from '@/lib/permissions';
 import { cookies } from 'next/headers';
 
 // --- Auth ---
@@ -109,7 +110,7 @@ export async function signUpUser(formData: FormData) {
                 email: email,
                 name: name,
                 tenantId: tenant.id,
-                role: 'USER',
+                role: 'COLLABORATOR',
                 password: password // Guardamos por compatibilidad con el sistema legacy
             },
             include: { tenant: true }
@@ -188,7 +189,7 @@ export async function createUser(formData: FormData) {
     const role = formData.get('role') as string;
     // ... (rest is same)
     await prisma.user.create({
-        data: { name, email: formData.get('email') as string, role: role as 'ADMIN' | 'USER', tenantId }
+        data: { name, email: formData.get('email') as string, role: role as any, tenantId }
     });
     revalidatePath('/capacities/users');
 }
@@ -214,7 +215,9 @@ export async function saveDiscResult(userId: string, color: DiscColor, scores: D
 }
 
 export async function createPurpose(formData: FormData) {
-    const tenantId = await getTenantId();
+    const currentUser = await getCurrentUser();
+    if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
+    const tenantId = currentUser.tenantId;
     const statement = formData.get('statement') as string;
 
     await prisma.purpose.create({
@@ -224,7 +227,9 @@ export async function createPurpose(formData: FormData) {
 }
 
 export async function createAreaPurpose(statement: string) {
-    const tenantId = await getTenantId();
+    const currentUser = await getCurrentUser();
+    if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
+    const tenantId = currentUser.tenantId;
     await prisma.purpose.create({
         data: {
             statement,
@@ -237,7 +242,9 @@ export async function createAreaPurpose(statement: string) {
 }
 
 export async function createMega(formData: FormData) {
-    const tenantId = await getTenantId();
+    const currentUser = await getCurrentUser();
+    if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
+    const tenantId = currentUser.tenantId;
     const statement = formData.get('statement') as string;
     const purposeId = formData.get('purposeId') as string;
     const deadline = new Date(formData.get('deadline') as string);
@@ -249,7 +256,9 @@ export async function createMega(formData: FormData) {
 }
 
 export async function createObjective(formData: FormData) {
-    const tenantId = await getTenantId();
+    const currentUser = await getCurrentUser();
+    if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
+    const tenantId = currentUser.tenantId;
     const statement = formData.get('statement') as string;
     const megaId = formData.get('megaId') as string;
     const strategicAxisId = formData.get('strategicAxisId') as string | null;
@@ -267,7 +276,9 @@ export async function createObjective(formData: FormData) {
 }
 
 export async function createKeyResult(formData: FormData) {
-    const tenantId = await getTenantId();
+    const currentUser = await getCurrentUser();
+    if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
+    const tenantId = currentUser.tenantId;
     
     // Get current user to assign as owner
     const supabase = await createClient();
@@ -317,6 +328,8 @@ export async function createKeyResult(formData: FormData) {
 }
 
 export async function updateKeyResult(id: string, formData: FormData) {
+    const currentUser = await getCurrentUser();
+    if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
     const statement = formData.get('statement') as string;
     const targetValue = parseFloat(formData.get('targetValue') as string);
     const metricUnit = formData.get('metricUnit') as string;
@@ -335,6 +348,8 @@ export async function updateKeyResult(id: string, formData: FormData) {
 }
 
 export async function deleteKeyResult(id: string) {
+    const currentUser = await getCurrentUser();
+    if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
     try {
         await prisma.$transaction(async (tx) => {
             // Delete associated Initiatives first
@@ -416,7 +431,9 @@ export async function updateKeyResultValue(
 }
 
 export async function createInitiative(formData: FormData) {
-    const tenantId = await getTenantId();
+    const currentUser = await getCurrentUser();
+    if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
+    const tenantId = currentUser.tenantId;
     const title = formData.get('title') as string;
     const keyResultId = formData.get('keyResultId') as string;
     const horizon = formData.get('horizon') as Horizon;
@@ -554,7 +571,9 @@ export async function removeTeamMember(formData: FormData) {
 
 // ... existing code ...
 export async function updatePurpose(id: string, statement: string) {
-    const tenantId = await getTenantId();
+    const currentUser = await getCurrentUser();
+    if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
+    const tenantId = currentUser.tenantId;
     await prisma.purpose.update({
         where: { id },
         data: { statement }
@@ -564,7 +583,9 @@ export async function updatePurpose(id: string, statement: string) {
 }
 
 export async function updateMega(id: string, statement: string) {
-    const tenantId = await getTenantId();
+    const currentUser = await getCurrentUser();
+    if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
+    const tenantId = currentUser.tenantId;
     await prisma.mega.update({
         where: { id },
         data: { statement }
@@ -574,7 +595,9 @@ export async function updateMega(id: string, statement: string) {
 }
 
 export async function updateObjectiveTitle(objectiveId: string, newTitle: string) {
-    const tenantId = await getTenantId();
+    const currentUser = await getCurrentUser();
+    if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
+    const tenantId = currentUser.tenantId;
     await prisma.objective.update({
         where: { id: objectiveId },
         data: { statement: newTitle }
@@ -584,7 +607,9 @@ export async function updateObjectiveTitle(objectiveId: string, newTitle: string
 }
 
 export async function updateObjectiveOwner(objectiveId: string, ownerId: string | null) {
-    const tenantId = await getTenantId();
+    const currentUser = await getCurrentUser();
+    if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
+    const tenantId = currentUser.tenantId;
     await prisma.objective.update({
         where: { id: objectiveId },
         data: { ownerId }
@@ -594,7 +619,9 @@ export async function updateObjectiveOwner(objectiveId: string, ownerId: string 
 }
 
 export async function updateObjectiveStrategicAxis(objectiveId: string, strategicAxisId: string | null) {
-    const tenantId = await getTenantId();
+    const currentUser = await getCurrentUser();
+    if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
+    const tenantId = currentUser.tenantId;
     await prisma.objective.update({
         where: { id: objectiveId, tenantId },
         data: { strategicAxisId: strategicAxisId === "none" ? null : strategicAxisId }
@@ -605,6 +632,8 @@ export async function updateObjectiveStrategicAxis(objectiveId: string, strategi
 }
 
 export async function deleteMega(id: string) {
+    const currentUser = await getCurrentUser();
+    if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
     try {
         await prisma.$transaction(async (tx) => {
             // 1. Find all Objectives for this Mega
@@ -658,6 +687,8 @@ export async function deleteMega(id: string) {
 }
 
 export async function deleteObjective(id: string) {
+    const currentUser = await getCurrentUser();
+    if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
     try {
         await prisma.$transaction(async (tx) => {
             // Find all Key Results for this objective
@@ -840,11 +871,11 @@ export async function deleteStrategicAxis(id: string) {
 
 // --- Admin User Management ---
 
-export async function updateUserRole(userId: string, newRole: 'ADMIN' | 'USER') {
+export async function updateUserRole(userId: string, newRole: 'ADMIN' | 'DIRECTOR' | 'COLLABORATOR') {
     const currentUser = await getCurrentUser();
     
     // Security check: Only ADMINs can change roles
-    if (currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPERADMIN') {
+    if (!canManageUsers(currentUser.role)) {
         throw new Error('Unauthorized: Only admins can update user roles');
     }
 
@@ -860,7 +891,7 @@ export async function updateUserRole(userId: string, newRole: 'ADMIN' | 'USER') 
 export async function inviteUser(formData: FormData) {
     // 1. Verificar permisos del solicitante
     const currentUser = await getCurrentUser();
-    if (currentUser.role !== 'ADMIN' && currentUser.role !== 'SUPERADMIN') {
+    if (!canManageUsers(currentUser.role)) {
         return { error: 'Unauthorized: Only admins can invite users' };
     }
 
@@ -868,7 +899,7 @@ export async function inviteUser(formData: FormData) {
     const name = formData.get('name') as string;
     const jobRole = formData.get('jobRole') as JobRole || 'MEMBER';
     const area = formData.get('area') as string;
-    const role = formData.get('role') as 'ADMIN' | 'USER' || 'USER';
+    const role = formData.get('role') as 'ADMIN' | 'DIRECTOR' | 'COLLABORATOR' || 'COLLABORATOR';
 
     if (!email) return { error: 'Email is required' };
 
