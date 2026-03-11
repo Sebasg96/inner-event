@@ -53,6 +53,7 @@ model Tenant {
   mutationLogs            MutationLog[]
   Document                Document[]
   strategicAccess         StrategicAccess[]
+  analyticsSnapshots      AnalyticsSnapshot[]
 }
 
 model User {
@@ -499,4 +500,16 @@ model StrategicAccess {
   @@unique([userId, purposeId])
   @@unique([userId, objectiveId])
   @@unique([userId, initiativeId])
+}
+
+model AnalyticsSnapshot {
+  id        String   @id @default(uuid())
+  type      String   // "narrative" | "insights"
+  data      String   // JSON stringified LLM response
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, type])
 }

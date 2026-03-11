@@ -1,8 +1,10 @@
-import { prisma } from '@/lib/prisma';
 import MetricsClient from './MetricsClient';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { jsonModel } from '@/lib/ai/gemini';
+import { getAnalyticsData } from '@/lib/analytics-data';
+import { prisma } from '@/lib/prisma';
+import { buildInsightsPrompt } from '../analytics-actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,65 +16,83 @@ export default async function MetricsPage() {
         redirect('/login');
     }
 
-    // Fetch data for AI context
-    const initiatives = await prisma.initiative.findMany({
-        where: { tenantId },
-        include: {
-            keyResult: {
-                include: {
-                    objective: true
-                }
-            }
-        },
-        orderBy: { updatedAt: 'desc' }
+    // Always fetch real metrics (lightweight, no LLM)
+    const analytics = await getAnalyticsData(tenantId);
+
+    // Check for cached snapshot
+    const snapshot = await prisma.analyticsSnapshot.findUnique({
+        where: { tenantId_type: { tenantId, type: 'insights' } },
     });
 
-    // Provide context to AI
-    const prompt = `
-    You are an AI assistant analyzing a company's strategic initiatives, objectives, and key results to provide deep analytics.
-    
-    Here is a summary of the current data:
-    Total Initiatives: ${initiatives.length}
-    Total Objectives/KRs detected: ${initiatives.length * 2}
-    Data sample:
-    ${JSON.stringify(initiatives.slice(0, 5).map(i => ({ title: i.title, progress: i.progress, status: i.status, keyResult: i.keyResult?.statement, objective: i.keyResult?.objective?.statement })))}
+    let aiInsights;
+    let generatedAt: string | null = null;
 
-    Based on this data, provide the following metrics in valid JSON matching this exact schema:
-    {
-        "adherenceScore": number, // A score from 0 to 100 representing how well the team adheres to updates.
-        "churnRisk": string, // "Bajo", "Medio", or "Alto".
-        "maturityLevel": number, // A level from 1 to 5 indicating OKR maturity based on structure.
-        "behaviorPatterns": Array<{ id: string, title: string, description: string }>, // 2 string patters describing behavior (e.g. "🗓️ The Friday Rush" and description). Give emojis in title.
-        "suggestions": Array<string> // 3 actionable suggestions to improve strategy execution.
+    if (snapshot) {
+        // Use cached data — no LLM call
+        aiInsights = JSON.parse(snapshot.data);
+        generatedAt = snapshot.updatedAt.toISOString();
+    } else {
+        // First visit ever — generate and cache
+        const prompt = buildInsightsPrompt(analytics);
+
+        try {
+            const aiResult = await jsonModel.generateContent(prompt);
+            const responseText = aiResult.response.text();
+            aiInsights = JSON.parse(responseText);
+
+            // Save snapshot (using upsert to be safe)
+            await prisma.analyticsSnapshot.upsert({
+                where: { tenantId_type: { tenantId, type: 'insights' } },
+                create: {
+                    type: 'insights',
+                    data: JSON.stringify(aiInsights),
+                    tenantId,
+                },
+                update: {
+                    data: JSON.stringify(aiInsights),
+                }
+            });
+            generatedAt = new Date().toISOString();
+        } catch (error) {
+            console.error('Error generating deep analytics:', error);
+            const alignment = analytics.totalKRs > 0 ? Math.min(100, Math.round((analytics.totalObjectives / Math.max(1, analytics.totalKRs)) * 100 * 2)) : 0;
+            aiInsights = {
+                maturityLevel: analytics.adherenceScore >= 80 ? 5 : analytics.adherenceScore >= 60 ? 4 : analytics.adherenceScore >= 40 ? 3 : analytics.totalKRs > 0 ? 2 : 1,
+                maturityExplanation: 'Evaluación calculada automáticamente basada en adherencia y progreso.',
+                behaviorPatterns: [
+                    { title: '📊 Estado General', description: `${analytics.totalKRs} KRs con progreso promedio del ${analytics.avgKRProgress}%.`, type: 'neutral' },
+                ],
+                healthScore: Math.round((analytics.avgKRProgress + analytics.adherenceScore + analytics.avgInitiativeProgress) / 3),
+                healthBreakdown: { alignment, cadence: analytics.adherenceScore, progress: analytics.avgKRProgress, execution: analytics.avgInitiativeProgress },
+                actionItems: [
+                    { action: 'Revisar KRs sin actualización reciente', impact: 'alto', effort: 'bajo' },
+                    { action: 'Definir periodicidad en KRs que no la tienen', impact: 'alto', effort: 'medio' },
+                ],
+            };
+        }
     }
 
-    Give actionable insights. If data sample has 0 initiatives, give a low score.
-    `;
-
-    let aiData;
-
-    try {
-        const aiResult = await jsonModel.generateContent(prompt);
-        const responseText = aiResult.response.text();
-        aiData = JSON.parse(responseText);
-    } catch (error) {
-        console.error("Error generating metrics AI:", error);
-        // Fallback mock data
-        aiData = {
-            adherenceScore: 78,
-            churnRisk: "Bajo",
-            maturityLevel: 3,
-            behaviorPatterns: [
-                { id: '1', title: '🗓️ "The Friday Rush"', description: 'Evidencia asume que las actualizaciones ocurren a fin de semana.' },
-                { id: '2', title: '📝 "Detail Oriented"', description: 'Descripciones de iniciativas tienen buen volumen de palabras.' }
-            ],
-            suggestions: [
-                "Incentiva actualizaciones tempranas en la semana.",
-                "Revisa usuarios inactivos o baja participación.",
-                "Intenta vincular KRs a resultados numéricos directamente."
-            ]
-        };
-    }
-
-    return <MetricsClient data={aiData} />;
+    return (
+        <MetricsClient
+            metrics={{
+                adherenceScore: analytics.adherenceScore,
+                avgDaysBetweenUpdates: analytics.avgDaysBetweenUpdates,
+                totalUpdatesThisMonth: analytics.totalUpdatesThisMonth,
+                totalUpdatesLastMonth: analytics.totalUpdatesLastMonth,
+                avgKRProgress: analytics.avgKRProgress,
+                krsOnTrack: analytics.krsOnTrack,
+                krsAtRisk: analytics.krsAtRisk,
+                krsBehind: analytics.krsBehind,
+                krsComplete: analytics.krsComplete,
+                totalKRs: analytics.totalKRs,
+                totalObjectives: analytics.totalObjectives,
+                totalInitiatives: analytics.totalInitiatives,
+                initiativesByStatus: analytics.initiativesByStatus,
+                initiativesByHorizon: analytics.initiativesByHorizon,
+                avgInitiativeProgress: analytics.avgInitiativeProgress,
+            }}
+            insights={aiInsights}
+            generatedAt={generatedAt}
+        />
+    );
 }

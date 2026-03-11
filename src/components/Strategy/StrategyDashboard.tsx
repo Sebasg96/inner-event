@@ -471,19 +471,20 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
                             {organizationalValues.map((value) => (
                                 <div key={value.id} style={{
-                                    background: 'rgba(255,255,255,0.8)',
-                                    border: `1px solid ${theme.color}`,
+                                    background: 'rgb(0, 179, 161)',
+                                    color: '#ffffff',
                                     borderRadius: '20px',
-                                    padding: '0.5rem 1rem',
+                                    padding: '0.2rem 0.6rem',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: '0.5rem',
                                     fontSize: '0.9rem',
-                                    fontWeight: 500
+                                    fontWeight: 700,
+                                    letterSpacing: '0.08em'
                                 }}>
                                     <span>{value.statement}</span>
                                     <form action={async () => { await deleteOrganizationalValue(value.id); }}>
-                                        <button type="submit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '1rem', padding: 0 }}>×</button>
+                                        <button type="submit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: '1rem', padding: 0, display: 'flex' }}>×</button>
                                     </form>
                                 </div>
                             ))}
@@ -510,19 +511,20 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
                             {strategicAxes.map((axis) => (
                                 <div key={axis.id} style={{
-                                    background: 'rgba(255,255,255,0.8)',
-                                    border: `1px solid ${theme.color}`,
+                                    background: 'rgb(0, 179, 161)',
+                                    color: '#ffffff',
                                     borderRadius: '20px',
-                                    padding: '0.5rem 1rem',
+                                    padding: '0.2rem 0.6rem',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: '0.5rem',
                                     fontSize: '0.9rem',
-                                    fontWeight: 500
+                                    fontWeight: 700,
+                                    letterSpacing: '0.08em'
                                 }}>
                                     <span>{axis.statement}</span>
                                     <form action={async () => { await deleteStrategicAxis(axis.id); }}>
-                                        <button type="submit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: '1rem', padding: 0 }}>×</button>
+                                        <button type="submit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: '1rem', padding: 0, display: 'flex' }}>×</button>
                                     </form>
                                 </div>
                             ))}
@@ -777,21 +779,23 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                                                                             }}
                                                                             style={{
                                                                                 appearance: 'none',
-                                                                                backgroundColor: obj.strategicAxisId ? '#f0fdf4' : 'transparent',
-                                                                                border: obj.strategicAxisId ? '1px solid #bbf7d0' : '1px dashed #cbd5e1',
+                                                                                backgroundColor: obj.strategicAxisId ? 'rgb(0, 179, 161)' : 'transparent',
+                                                                                border: obj.strategicAxisId ? 'none' : '1px dashed #cbd5e1',
                                                                                 borderRadius: '20px',
                                                                                 padding: '2px 8px',
-                                                                                paddingRight: '20px',
-                                                                                fontSize: '0.75rem',
-                                                                                color: obj.strategicAxisId ? '#15803d' : '#94a3b8',
+                                                                                paddingRight: '22px',
+                                                                                fontSize: '0.65rem',
+                                                                                color: obj.strategicAxisId ? '#ffffff' : '#94a3b8',
+                                                                                fontWeight: obj.strategicAxisId ? 700 : 500,
+                                                                                letterSpacing: obj.strategicAxisId ? '0.04em' : 'normal',
                                                                                 cursor: 'pointer',
                                                                                 maxWidth: '120px',
                                                                                 whiteSpace: 'nowrap',
                                                                                 overflow: 'hidden',
                                                                                 textOverflow: 'ellipsis',
-                                                                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                                                                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='${obj.strategicAxisId ? 'white' : '%2394a3b8'}' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
                                                                                 backgroundRepeat: 'no-repeat',
-                                                                                backgroundPosition: 'right 4px center'
+                                                                                backgroundPosition: 'right 6px center'
                                                                             }}
                                                                             title={obj.strategicAxisId ? `Eje Estratégico: ${strategicAxes.find(a => a.id === obj.strategicAxisId)?.statement || 'Desconocido'}` : "Vincular a Eje Estratégico"}
                                                                         >
