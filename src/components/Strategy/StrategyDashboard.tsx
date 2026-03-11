@@ -87,9 +87,10 @@ type StrategyDashboardProps = {
     organizationalValues?: OrganizationalValue[];
     strategicAxes?: StrategicAxis[];
     tenantUsers?: { id: string, name: string, lastName: string | null, role: string, area: string | null }[];
+    user?: any; // Loosening type to avoid Prisma enum/extra fields mismatches
 };
 
-export default function StrategyDashboard({ purpose, areaPurpose, analysisData, organizationalValues = [], strategicAxes = [], tenantUsers = [] }: StrategyDashboardProps) {
+export default function StrategyDashboard({ purpose, areaPurpose, analysisData, organizationalValues = [], strategicAxes = [], tenantUsers = [], user }: StrategyDashboardProps) {
     const { dict } = useLanguage();
     const router = useRouter(); // Initialize router for redirects
     // Removed manual editing state
@@ -554,7 +555,9 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                                 <h2 className={styles.sectionTitle} style={{ marginBottom: 0, color: theme.color }}>MEGAS (Gran Destino)</h2>
 
                                 {/* Mega Form with AI */}
-                                <MegaCreator purposeId={purpose.id} areaPurpose={areaPurpose?.statement || ''} placeholder={dict.strategy.megas.placeholder} themeColor={theme.color} />
+                                {purpose.megas.length === 0 && (
+                                    <MegaCreator purposeId={purpose.id} areaPurpose={areaPurpose?.statement || ''} placeholder={dict.strategy.megas.placeholder} themeColor={theme.color} />
+                                )}
                             </div>
 
                             <div className={styles.megaGrid}>
@@ -589,7 +592,16 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                                                     }}>
                                                         MEGA {i + 1}
                                                     </div>
-                                                    <h3 className={styles.megaTitle} style={{ marginBottom: 0, fontSize: '1.5rem', fontWeight: 700, color: 'black' }}>
+                                                    <h3 className={styles.megaTitle} style={{
+                                                        marginBottom: 0,
+                                                        fontWeight: 700,
+                                                        color: 'black',
+                                                        wordBreak: 'break-word',
+                                                        overflowWrap: 'break-word',
+                                                        display: 'block',
+                                                        width: '100%',
+                                                        lineHeight: '1.3'
+                                                    }}>
                                                         <EditableText
                                                             initialValue={mega.statement}
                                                             onSave={async (val) => { await updateMega(mega.id, val); }}
@@ -704,15 +716,17 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
 
                                                 <div className={styles.objectivesGrid}>
                                                     {mega.objectives.map((obj, j) => (
-                                                        <div key={obj.id} style={{
+                                                        <div key={obj.id} className={styles.objectiveItem} style={{
                                                             background: 'white',
                                                             borderRadius: '12px',
-                                                            padding: '1.5rem',
-                                                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                                                            padding: '1.25rem',
+                                                            boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
                                                             border: '1px solid #e2e8f0',
                                                             display: 'flex',
                                                             flexDirection: 'column',
-                                                            height: '100%'
+                                                            gap: '1rem',
+                                                            height: '100%',
+                                                            minHeight: '200px'
                                                         }}>
                                                             <div className={styles.objectiveTitle} style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1.2rem', color: '#1e293b', display: 'flex', gap: '0.75rem', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap' }}>
 
@@ -1051,7 +1065,8 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                 <KeyResultProgressModal
                     isOpen={!!selectedKR}
                     onClose={() => setSelectedKR(null)}
-                    kr={selectedKR as any}
+                    kr={selectedKR}
+                    userRole={user?.role}
                 />
             )}
         </div>

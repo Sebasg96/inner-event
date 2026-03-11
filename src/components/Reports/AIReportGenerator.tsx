@@ -242,10 +242,10 @@ export default function AIReportGenerator() {
                                 <img
                                     src="/report-logo.png"
                                     alt="Pragma"
-                                    style={{ height: '50px', marginBottom: '0.5rem', objectFit: 'contain' }}
+                                    style={{ height: '80px', marginBottom: '1rem', objectFit: 'contain' }}
                                     onError={(e) => {
                                         e.currentTarget.src = "/pragma-logo.png";
-                                        e.currentTarget.style.height = '40px';
+                                        e.currentTarget.style.height = '80px';
                                     }}
                                 />
                                 <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', margin: 0 }}>

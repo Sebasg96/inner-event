@@ -377,7 +377,13 @@ export async function updateKeyResultValue(
     numeratorValue?: number, 
     denominatorValue?: number,
     numeratorLabel?: string,
-    denominatorLabel?: string
+    denominatorLabel?: string,
+    metadata?: {
+        startYear?: number | null;
+        startQuarter?: number | null;
+        endYear?: number | null;
+        endQuarter?: number | null;
+    }
 ) {
     try {
         const tenantId = await getTenantId();
@@ -407,7 +413,8 @@ export async function updateKeyResultValue(
                     numeratorValue: numeratorValue ?? undefined,
                     denominatorValue: denominatorValue ?? undefined,
                     numeratorLabel: numeratorLabel ?? undefined,
-                    denominatorLabel: denominatorLabel ?? undefined
+                    denominatorLabel: denominatorLabel ?? undefined,
+                    ...(metadata || {})
                 }
             });
 
@@ -1173,6 +1180,26 @@ export async function updateKeyResultPeriodicity(keyResultId: string, periodicit
     });
     revalidatePath('/strategy/planning');
     revalidatePath('/');
+}
+
+export async function updateKeyResultMetadata(
+    id: string,
+    data: {
+        startYear?: number | null;
+        startQuarter?: number | null;
+        endYear?: number | null;
+        endQuarter?: number | null;
+    }
+) {
+    const currentUser = await getCurrentUser();
+    if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized');
+    
+    await prisma.keyResult.update({
+        where: { id },
+        data
+    });
+    revalidatePath('/strategy');
+    revalidatePath('/strategy/planning');
 }
 
 export async function updateInitiativeOwner(initiativeId: string, ownerId: string | null) {

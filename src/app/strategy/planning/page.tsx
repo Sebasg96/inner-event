@@ -26,7 +26,7 @@ async function getCurrentUser() {
 
     const dbUser = await prisma.user.findUnique({
         where: { email: user.email },
-        select: { id: true, tenantId: true, area: true, role: true }
+        select: { id: true, tenantId: true, area: true, role: true, name: true, lastName: true }
     });
 
     return dbUser;
@@ -58,6 +58,7 @@ export default async function PlanningPage() {
                 include: {
                     objectives: {
                         where: buildObjectiveWhere({ parentObjectiveId: null }),
+                        orderBy: { createdAt: 'asc' },
                         select: {
                             id: true,
                             statement: true,
@@ -65,6 +66,7 @@ export default async function PlanningPage() {
                             weight: true,
                             owner: true,
                             keyResults: {
+                                orderBy: { createdAt: 'asc' },
                                 select: {
                                     id: true,
                                     statement: true,
@@ -91,6 +93,7 @@ export default async function PlanningPage() {
                             },
                             childObjectives: { // Level 2
                                 where: buildObjectiveWhere(),
+                                orderBy: { createdAt: 'asc' },
                                 select: {
                                     id: true,
                                     statement: true,
@@ -98,6 +101,7 @@ export default async function PlanningPage() {
                                     weight: true,
                                     owner: true,
                                     keyResults: {
+                                        orderBy: { createdAt: 'asc' },
                                         select: {
                                             id: true,
                                             statement: true,
@@ -122,6 +126,7 @@ export default async function PlanningPage() {
                                     },
                                     childObjectives: { // Level 3
                                         where: buildObjectiveWhere(),
+                                        orderBy: { createdAt: 'asc' }, // Added orderBy
                                         select: {
                                             id: true,
                                             statement: true,
@@ -129,6 +134,7 @@ export default async function PlanningPage() {
                                             weight: true,
                                             owner: true,
                                             keyResults: {
+                                                orderBy: { createdAt: 'asc' }, // Added orderBy
                                                 select: {
                                                     id: true,
                                                     statement: true,
@@ -203,6 +209,7 @@ export default async function PlanningPage() {
                     organizationalValues={organizationalValues}
                     strategicAxes={strategicAxes}
                     tenantUsers={tenantUsers}
+                    user={currentUser}
                 />
             </div>
         </div>

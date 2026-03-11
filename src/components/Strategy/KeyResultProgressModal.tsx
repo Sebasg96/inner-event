@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { updateKeyResultValue } from '@/app/actions';
+import { updateKeyResultValue, updateKeyResultMetadata } from '@/app/actions';
 import { useModuleTheme } from '@/lib/hooks/useModuleTheme';
 import { useRouter } from 'next/navigation';
 import InitiativeCreator from './InitiativeCreator';
@@ -32,10 +32,15 @@ interface Props {
         trackingType: 'PERCENTAGE' | 'UNITS';
         updatePeriodicity?: string | null;
         updates?: HistoryRecord[];
+        startYear?: number | null;
+        startQuarter?: number | null;
+        endYear?: number | null;
+        endQuarter?: number | null;
     };
+    userRole?: string;
 }
 
-export default function KeyResultProgressModal({ isOpen, onClose, kr }: Props) {
+export default function KeyResultProgressModal({ isOpen, onClose, kr, userRole }: Props) {
     const theme = useModuleTheme();
     const router = useRouter();
     // states for calculation assistant (PERCENTAGE)
@@ -49,6 +54,14 @@ export default function KeyResultProgressModal({ isOpen, onClose, kr }: Props) {
     const [periodicity, setPeriodicity] = useState<string>(kr.updatePeriodicity || '');
 
     const [isSaving, setIsSaving] = useState(false);
+
+    // Date metadata states
+    const [startYear, setStartYear] = useState<number>(kr.startYear ?? new Date().getFullYear());
+    const [startQuarter, setStartQuarter] = useState<number>(kr.startQuarter ?? 1);
+    const [endYear, setEndYear] = useState<number>(kr.endYear ?? new Date().getFullYear());
+    const [endQuarter, setEndQuarter] = useState<number>(kr.endQuarter ?? 4);
+
+    const canEditDates = userRole === 'ADMIN' || userRole === 'SUPERADMIN' || userRole === 'DIRECTOR';
 
     if (!isOpen) return null;
 
@@ -64,6 +77,13 @@ export default function KeyResultProgressModal({ isOpen, onClose, kr }: Props) {
     const handleSave = async () => {
         setIsSaving(true);
         try {
+            const metadata = {
+                startYear,
+                startQuarter,
+                endYear,
+                endQuarter
+            };
+
             if (kr.trackingType === 'PERCENTAGE') {
                 await updateKeyResultValue(
                     kr.id,
@@ -71,10 +91,19 @@ export default function KeyResultProgressModal({ isOpen, onClose, kr }: Props) {
                     n,
                     d,
                     numLabel,
-                    denLabel
+                    denLabel,
+                    metadata
                 );
             } else {
-                await updateKeyResultValue(kr.id, u);
+                await updateKeyResultValue(
+                    kr.id,
+                    u,
+                    undefined,
+                    undefined,
+                    undefined,
+                    undefined,
+                    metadata
+                );
             }
             // Dispatch event to update notifications
             window.dispatchEvent(new Event('kr-updated'));
@@ -164,6 +193,75 @@ export default function KeyResultProgressModal({ isOpen, onClose, kr }: Props) {
                                 <option value="QUARTERLY">Trimestral</option>
                                 <option value="YEARLY">Anual</option>
                             </select>
+                        </div>
+
+                        {/* Date Metadata Section */}
+                        <div style={{ padding: '1.25rem', background: '#f1f5f9', borderRadius: '12px', border: '2px solid #e2e8f0', marginBottom: '1rem' }}>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#1e293b', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                📅 Metas de Tiempo (Registro Q/Año)
+                            </div>
+
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                                <div>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '0.5rem' }}>INICIO</label>
+                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <select
+                                            value={startQuarter}
+                                            disabled={!canEditDates}
+                                            onChange={(e) => {
+                                                const val = parseInt(e.target.value);
+                                                setStartQuarter(val);
+                                            }}
+                                            style={{ flex: 1, padding: '0.6rem', borderRadius: '8px', border: '1px solid #94a3b8', fontSize: '1rem', fontWeight: '500', color: '#0f172a', background: canEditDates ? 'white' : '#f8fafc', appearance: 'auto' }}
+                                        >
+                                            {[1, 2, 3, 4].map(q => <option key={q} value={q}>Q{q}</option>)}
+                                        </select>
+                                        <select
+                                            value={startYear}
+                                            disabled={!canEditDates}
+                                            onChange={(e) => {
+                                                const val = parseInt(e.target.value);
+                                                setStartYear(val);
+                                            }}
+                                            style={{ flex: 1, padding: '0.6rem', borderRadius: '8px', border: '1px solid #94a3b8', fontSize: '1rem', fontWeight: '500', color: '#0f172a', background: canEditDates ? 'white' : '#f8fafc', appearance: 'auto' }}
+                                        >
+                                            {[2024, 2025, 2026, 2027, 2028].map(y => <option key={y} value={y}>{y}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#475569', display: 'block', marginBottom: '0.5rem' }}>FIN</label>
+                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <select
+                                            value={endQuarter}
+                                            disabled={!canEditDates}
+                                            onChange={(e) => {
+                                                const val = parseInt(e.target.value);
+                                                setEndQuarter(val);
+                                            }}
+                                            style={{ flex: 1, padding: '0.6rem', borderRadius: '8px', border: '1px solid #94a3b8', fontSize: '1rem', fontWeight: '500', color: '#0f172a', background: canEditDates ? 'white' : '#f8fafc', appearance: 'auto' }}
+                                        >
+                                            {[1, 2, 3, 4].map(q => <option key={q} value={q}>Q{q}</option>)}
+                                        </select>
+                                        <select
+                                            value={endYear}
+                                            disabled={!canEditDates}
+                                            onChange={(e) => {
+                                                const val = parseInt(e.target.value);
+                                                setEndYear(val);
+                                            }}
+                                            style={{ flex: 1, padding: '0.6rem', borderRadius: '8px', border: '1px solid #94a3b8', fontSize: '1rem', fontWeight: '500', color: '#0f172a', background: canEditDates ? 'white' : '#f8fafc', appearance: 'auto' }}
+                                        >
+                                            {[2024, 2025, 2026, 2027, 2028].map(y => <option key={y} value={y}>{y}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            {!canEditDates && (
+                                <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.75rem', fontStyle: 'italic', background: '#f8fafc', padding: '0.5rem', borderRadius: '6px' }}>
+                                    ℹ️ Solo administradores pueden modificar estas fechas de registro.
+                                </div>
+                            )}
                         </div>
 
                         {kr.trackingType === 'PERCENTAGE' ? (

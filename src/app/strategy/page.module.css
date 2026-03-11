@@ -2,7 +2,7 @@
 
 .container {
     padding: 2rem;
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
 }
 
@@ -83,7 +83,7 @@
 
 .megaGrid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: 1fr;
     gap: 2rem;
 }
 
@@ -100,6 +100,7 @@
     padding: 1.5rem;
     transition: transform 0.2s, box-shadow 0.2s;
     box-shadow: var(--shadow-sm);
+    width: 100%;
 }
 
 .megaCard:hover {
@@ -115,12 +116,7 @@
     width: 100%;
 }
 
-@media (min-width: 1440px) {
-    .megaContentWrapper {
-        /* Extra wide screens could even do side-by-side mega/objectives if needed, 
-           but a grid of objectives is usually enough */
-    }
-}
+
 
 
 .megaHeader {
@@ -140,10 +136,13 @@
 }
 
 .megaTitle {
-    font-size: 1.5rem;
+    font-size: 1.85rem;
     font-weight: 700;
     color: #000000;
     letter-spacing: -0.02em;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.25;
 }
 
 .megaDate {
@@ -177,8 +176,11 @@
 
 .objectiveItem {
     position: relative;
-    padding-left: 1rem;
-    border-left: 2px solid hsl(var(--primary) / 0.3);
+    padding: 1.25rem;
+    border-left: 4px solid hsl(var(--primary) / 0.5);
+    background: white;
+    border-radius: 12px;
+    height: 100%;
 }
 
 .objectiveTitle {
