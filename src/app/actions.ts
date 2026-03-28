@@ -180,7 +180,27 @@ async function getCurrentUser() {
     });
 
     if (!dbUser) throw new Error('User context not found in database');
+    if (!dbUser) throw new Error('User context not found in database');
     return dbUser;
+}
+
+// Helper to log actions within Rituals
+async function logRitualAction(ritualId: string, action: string, details?: string) {
+    try {
+        const user = await getCurrentUser();
+        if (!user) return;
+        
+        await prisma.ritualActionLog.create({
+            data: {
+                ritualId,
+                userId: user.id,
+                action,
+                details
+            }
+        });
+    } catch (e) {
+        console.error("Failed to log ritual action:", e);
+    }
 }
 
 export async function createUser(formData: FormData) {
@@ -383,7 +403,9 @@ export async function updateKeyResultValue(
         startQuarter?: number | null;
         endYear?: number | null;
         endQuarter?: number | null;
-    }
+    },
+    comment?: string,
+    obstacles?: string
 ) {
     try {
         const tenantId = await getTenantId();
@@ -424,7 +446,9 @@ export async function updateKeyResultValue(
                     keyResultId: id,
                     oldValue: kr.currentValue,
                     newValue: newValue,
-                    userId: userId || undefined
+                    userId: userId || undefined,
+                    comment: comment || undefined,
+                    obstacles: obstacles || undefined
                 }
             });
         });
@@ -726,20 +750,69 @@ export async function deleteObjective(id: string) {
     }
 }
 
+export async function createStrategicGoal(statement: string, targetValue: number, currentValue: number) {
+    const currentUser = await getCurrentUser();
+    if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
+    const tenantId = currentUser.tenantId;
+
+    const goal = await prisma.strategicGoal.create({
+        data: {
+            statement,
+            targetValue,
+            currentValue,
+            tenantId
+        }
+    });
+    revalidatePath('/strategy/planning');
+    revalidatePath('/dashboard');
+    return { success: true, id: goal.id };
+}
+
+export async function updateStrategicGoalValue(id: string, currentValue: number) {
+    const currentUser = await getCurrentUser();
+    if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
+    const tenantId = currentUser.tenantId;
+
+    await prisma.strategicGoal.update({
+        where: { id, tenantId },
+        data: { currentValue }
+    });
+    revalidatePath('/strategy/planning');
+    revalidatePath('/dashboard');
+    return { success: true };
+}
+
+export async function deleteStrategicGoal(id: string) {
+    const currentUser = await getCurrentUser();
+    if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
+    const tenantId = currentUser.tenantId;
+
+    await prisma.strategicGoal.delete({
+        where: { id, tenantId }
+    });
+    revalidatePath('/strategy/planning');
+    revalidatePath('/dashboard');
+    return { success: true };
+}
+
 // Phase 40: Rituales de Seguimiento (Rituals)
 
 export async function createRitual(formData: FormData) {
     const tenantId = await getTenantId();
     const date = new Date(formData.get('date') as string);
     const description = formData.get('description') as string;
+    const providedName = formData.get('name') as string;
 
-    // Auto-generate name "Ritual N"
-    const count = await prisma.ritual.count({
-        where: { tenantId }
-    });
-    const name = `Ritual ${count + 1}`;
+    let name = providedName?.trim();
+    if (!name) {
+        // Auto-generate name "Ritual N"
+        const count = await prisma.ritual.count({
+            where: { tenantId }
+        });
+        name = `Ritual ${count + 1}`;
+    }
 
-    await prisma.ritual.create({
+    const newRitual = await prisma.ritual.create({
         data: {
             name,
             date,
@@ -748,23 +821,227 @@ export async function createRitual(formData: FormData) {
         }
     });
 
+    await logRitualAction(newRitual.id, 'Ritual Creado', `Se programó para el ${date.toLocaleDateString()}`);
+
+    revalidatePath('/rituals');
+}
+
+export async function deleteRitual(id: string) {
+    const tenantId = await getTenantId();
+    await prisma.ritual.delete({
+        where: { id, tenantId }
+    });
     revalidatePath('/rituals');
 }
 
 export async function updateRitual(id: string, formData: FormData) {
     const discussionPoints = formData.get('discussionPoints') as string;
-    const commitments = formData.get('commitments') as string;
     const aiSuggestions = formData.get('aiSuggestions') as string;
 
+    const tenantId = await getTenantId();
+
     await prisma.ritual.update({
-        where: { id },
+        where: { id, tenantId },
         data: {
             discussionPoints,
-            commitments,
             aiSuggestions
         }
     });
+
+    await logRitualAction(id, 'Sesión Actualizada', 'Se modificaron los puntos tratados de la sesión.');
+
     revalidatePath('/rituals');
+    revalidatePath(`/rituals/${id}`);
+}
+
+export async function createRitualCommitment(formData: FormData) {
+    const ritualId = formData.get('ritualId') as string;
+    const description = formData.get('description') as string;
+    const ownerId = formData.get('ownerId') as string | null;
+    const dateStr = formData.get('dueDate') as string;
+    const dueDate = dateStr ? new Date(dateStr) : null;
+    
+    const tenantId = await getTenantId();
+    const ritual = await prisma.ritual.findUnique({ where: { id: ritualId, tenantId } });
+    if (!ritual) throw new Error("Ritual not found or unauthorized");
+
+    await prisma.ritualCommitment.create({
+        data: {
+            ritualId,
+            description,
+            ownerId: ownerId || null,
+            dueDate
+        }
+    });
+
+    await logRitualAction(ritualId, 'Compromiso Agregado', description);
+
+    revalidatePath(`/rituals/${ritualId}`);
+}
+
+export async function toggleRitualCommitmentStatus(id: string, isCompleted: boolean, ritualId: string) {
+    const status = isCompleted ? 'COMPLETED' : 'PENDING';
+    await prisma.ritualCommitment.update({
+        where: { id },
+        data: { status: status as any }
+    });
+
+    await logRitualAction(ritualId, 'Estado de Compromiso Actualizado', `Nuevo estado: ${status}`);
+
+    revalidatePath(`/rituals/${ritualId}`);
+}
+
+export async function deleteRitualCommitment(id: string, ritualId: string) {
+    await prisma.ritualCommitment.delete({
+        where: { id }
+    });
+
+    await logRitualAction(ritualId, 'Compromiso Eliminado');
+
+    revalidatePath(`/rituals/${ritualId}`);
+}
+
+export async function addRitualParticipant(ritualId: string, userId: string) {
+    const tenantId = await getTenantId();
+    const ritual = await prisma.ritual.findUnique({ where: { id: ritualId, tenantId } });
+    if (!ritual) throw new Error("Ritual not found or unauthorized");
+
+    const existing = await prisma.ritualParticipant.findUnique({
+        where: {
+            ritualId_userId: {
+                ritualId,
+                userId
+            }
+        }
+    });
+
+    if (existing) {
+        console.warn(`User ${userId} is already a participant in ritual ${ritualId}`);
+        return { success: false, message: 'El usuario ya es participante.' };
+    }
+
+    await prisma.ritualParticipant.create({
+        data: { ritualId, userId }
+    });
+
+    await logRitualAction(ritualId, 'Participante Agregado');
+
+    revalidatePath(`/rituals/${ritualId}`);
+}
+
+export async function removeRitualParticipant(ritualId: string, userId: string) {
+    await prisma.ritualParticipant.deleteMany({
+        where: { ritualId, userId }
+    });
+
+    await logRitualAction(ritualId, 'Participante Removido');
+
+    revalidatePath(`/rituals/${ritualId}`);
+}
+
+export async function updateRitualStatus(id: string, status: string) {
+    const tenantId = await getTenantId();
+    await prisma.ritual.update({
+        where: { id, tenantId },
+        data: { status: status as any }
+    });
+
+    await logRitualAction(id, 'Estado de Ritual Cambiado', `Nuevo estado: ${status}`);
+
+    revalidatePath('/rituals');
+    revalidatePath(`/rituals/${id}`);
+}
+
+export async function getOffTrackKRs() {
+    const tenantId = await getTenantId();
+    const fifteenDaysAgo = new Date();
+    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+
+    // Fetch all KRs for the tenant to filter in memory
+    const allKrs = await prisma.keyResult.findMany({
+        where: { tenantId },
+        select: {
+            id: true,
+            statement: true,
+            currentValue: true,
+            targetValue: true,
+            metricUnit: true,
+            updatedAt: true,
+            objective: {
+                select: {
+                    id: true,
+                    statement: true
+                }
+            },
+            owner: {
+                select: {
+                    name: true
+                }
+            }
+        }
+    });
+
+    return allKrs.filter(kr => {
+        const progress = kr.targetValue > 0 ? (kr.currentValue / kr.targetValue) : 0;
+        const isStale = kr.updatedAt < fifteenDaysAgo;
+        // Off-track: less than 40% progress or not updated in 15 days
+        return progress < 0.4 || isStale;
+    });
+}
+
+export async function importOffTrackKRsToRitual(ritualId: string) {
+    const offTrack = await getOffTrackKRs();
+    if (offTrack.length === 0) return { message: 'No se encontraron KRs en riesgo.' };
+
+    const ritual = await prisma.ritual.findUnique({
+        where: { id: ritualId },
+        select: { discussionPoints: true }
+    });
+
+    if (!ritual) throw new Error('Ritual not found');
+
+    const fifteenDaysAgo = new Date();
+    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+
+    // Grouping by Objective for better structure
+    const groupedByObjective: Record<string, { title: string, krs: any[] }> = {};
+
+    offTrack.forEach((kr: any) => {
+        const objId = kr.objective.id;
+        if (!groupedByObjective[objId]) {
+            groupedByObjective[objId] = { title: kr.objective.statement, krs: [] };
+        }
+        groupedByObjective[objId].krs.push(kr);
+    });
+
+    const sections = Object.values(groupedByObjective).map(group => {
+        const krLines = group.krs.map(kr => {
+            const progress = kr.targetValue > 0 ? Math.round((kr.currentValue / kr.targetValue) * 100) : 0;
+            const isStale = kr.updatedAt < fifteenDaysAgo;
+            const reason = isStale ? '⚠️ Sin actualización en 15+ días' : '🛑 Progreso bajo (< 40%)';
+            
+            return `  - **KR: ${kr.statement}**\n    - Progreso: ${progress}% (${kr.currentValue}/${kr.targetValue} ${kr.metricUnit})\n    - Alerta: ${reason}\n    - Responsable: 👤 ${kr.owner?.name || 'Sin asignar'}`;
+        }).join('\n');
+
+        return `#### 🎯 Objetivo: ${group.title}\n${krLines}`;
+    }).join('\n\n');
+
+    const header = `### ⚡ ESTRATEGIA EN RIESGO: TEMAS SUGERIDOS\n\n`;
+    const newPoints = header + sections;
+
+    const updatedPoints = ritual.discussionPoints 
+        ? `${ritual.discussionPoints}\n\n---\n${newPoints}`
+        : newPoints;
+
+    await prisma.ritual.update({
+        where: { id: ritualId },
+        data: { discussionPoints: updatedPoints }
+    });
+
+    await logRitualAction(ritualId, 'KRs Importados', `Se importaron ${offTrack.length} KRs en riesgo a la agenda.`);
+
+    revalidatePath(`/rituals/${ritualId}`);
+    return { success: true, count: offTrack.length };
 }
 
 // Phase 50: Emergent Strategy Actions
@@ -1170,7 +1447,48 @@ export async function getUserNotifications() {
         return null;
     }).filter(n => n !== null);
 
-    return notifications;
+    // --- RITUAL NOTIFICATIONS ---
+    
+    // Fetch upcoming rituals (next 48 hours where user is participant)
+    const upcomingRituals = await prisma.ritual.findMany({
+        where: {
+            participants: { some: { userId: dbUser.id } },
+            status: 'SCHEDULED',
+            date: {
+                gte: now,
+                lte: new Date(now.getTime() + 48 * 60 * 60 * 1000)
+            }
+        },
+        select: { id: true, name: true, date: true }
+    });
+
+    const ritualNotifs = upcomingRituals.map(r => ({
+        id: r.id,
+        title: 'Ritual Próximo',
+        objectiveTitle: r.name,
+        daysOverdue: 0,
+        type: 'RITUAL_UPCOMING'
+    }));
+
+    // Fetch overdue commitments
+    const overdueCommitments = await prisma.ritualCommitment.findMany({
+        where: {
+            ownerId: dbUser.id,
+            status: 'PENDING',
+            dueDate: { lt: now }
+        },
+        select: { id: true, description: true, dueDate: true, ritual: { select: { id: true } } }
+    });
+
+    const commitmentNotifs = overdueCommitments.map(c => ({
+        id: c.ritual?.id || c.id, // Route to the ritual
+        title: 'Compromiso Vencido',
+        objectiveTitle: c.description,
+        daysOverdue: Math.floor((now.getTime() - new Date(c.dueDate!).getTime()) / (1000 * 3600 * 24)),
+        type: 'COMMITMENT_OVERDUE'
+    }));
+
+    return [...(notifications as any), ...ritualNotifs, ...commitmentNotifs];
 }
 
 export async function updateKeyResultPeriodicity(keyResultId: string, periodicity: any) {
@@ -1512,5 +1830,90 @@ export async function getDashboardMetrics(startDate?: Date | string, endDate?: D
         globalScore,
         globalTrafficLight: getTrafficLight(globalScore, avgGlobalExpected),
         megas: megaMetrics
+    };
+}
+
+export async function getStrategyHealthData() {
+    const tenantId = await getTenantId();
+    const fifteenDaysAgo = new Date();
+    fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+
+    const megas = await prisma.mega.findMany({
+        where: { tenantId },
+        include: { objectives: { include: { keyResults: true } } }
+    });
+
+    const issues: { type: 'ERROR' | 'WARNING' | 'INFO', message: string, entityName: string, entityId: string, category: string }[] = [];
+
+    let totalKRs = 0;
+    let totalObjectives = 0;
+
+    megas.forEach(mega => {
+        if (mega.objectives.length === 0) {
+            issues.push({
+                type: 'WARNING',
+                category: 'ORPHAN_MEGA',
+                message: 'Mega sin objetivos asociados. No hay camino claro de ejecución.',
+                entityName: mega.statement,
+                entityId: mega.id
+            });
+        }
+
+        mega.objectives.forEach(obj => {
+            totalObjectives++;
+            if (obj.keyResults.length === 0) {
+                issues.push({
+                    type: 'ERROR',
+                    category: 'ORPHAN_OBJECTIVE',
+                    message: 'Objetivo sin KRs. No es medible según el framework OKR.',
+                    entityName: obj.statement,
+                    entityId: obj.id
+                });
+            } else if (obj.keyResults.length > 5) {
+                issues.push({
+                    type: 'WARNING',
+                    category: 'OVERLOADED_OBJECTIVE',
+                    message: `Exceso de KRs (${obj.keyResults.length}). Se recomienda máximo 5 por objetivo.`,
+                    entityName: obj.statement,
+                    entityId: obj.id
+                });
+            }
+
+            obj.keyResults.forEach(kr => {
+                totalKRs++;
+                // 1. Stale KR
+                if (kr.updatedAt < fifteenDaysAgo) {
+                    issues.push({
+                        type: 'WARNING',
+                        category: 'STALE_KR',
+                        message: 'KR estancado. Sin actualizaciones en más de 15 días.',
+                        entityName: kr.statement,
+                        entityId: kr.id
+                    });
+                }
+
+                // 2. Vanity KR (Simple regex: look for a number in the statement)
+                const hasNumber = /\d+/.test(kr.statement);
+                if (!hasNumber) {
+                    issues.push({
+                        type: 'INFO',
+                        category: 'VANITY_KR',
+                        message: 'KR potencialmente cualitativo (sin números). Los KRs deben ser numéricos.',
+                        entityName: kr.statement,
+                        entityId: kr.id
+                    });
+                }
+            });
+        });
+    });
+
+    return {
+        score: Math.max(0, 100 - (issues.filter(i => i.type === 'ERROR').length * 10) - (issues.filter(i => i.type === 'WARNING').length * 5)),
+        issues,
+        stats: {
+            totalMegas: megas.length,
+            totalObjectives,
+            totalKRs
+        }
     };
 }

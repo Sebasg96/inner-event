@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Document {
@@ -44,6 +45,7 @@ model Tenant {
   rituals       Ritual[]
   values        OrganizationalValue[]
   strategicAxes StrategicAxis[]
+  strategicGoals StrategicGoal[]
 
   // Emergent Strategy
   hardChoices             HardChoice[]
@@ -89,6 +91,8 @@ model User {
   ownedInitiatives Initiative[]
 
   ritualParticipations RitualParticipant[]
+  ritualCommitments    RitualCommitment[]
+  ritualActionLogs     RitualActionLog[]
   keyResultUpdates     KeyResultUpdate[]
 
   strategicAccess StrategicAccess[]
@@ -289,8 +293,10 @@ model KeyResultUpdate {
   keyResultId String
   keyResult   KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
 
-  oldValue Float
-  newValue Float
+  oldValue    Float
+  newValue    Float
+  comment     String?
+  obstacles   String?
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id])
@@ -374,16 +380,24 @@ model Ritual {
   description String? // Optional context
 
   discussionPoints String? // "Puntos tratados"
-  commitments      String? // "Compromisos"
   aiSuggestions    String? // "Sugerencias de la IA"
+  status           RitualStatus @default(SCHEDULED)
 
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id])
 
   participants RitualParticipant[]
+  commitments  RitualCommitment[]
+  actionLogs   RitualActionLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum RitualStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
 }
 
 model RitualParticipant {
@@ -394,6 +408,40 @@ model RitualParticipant {
   user     User   @relation(fields: [userId], references: [id])
 
   @@unique([ritualId, userId])
+}
+
+model RitualCommitment {
+  id          String   @id @default(uuid())
+  description String
+  status      CommitmentStatus @default(PENDING)
+  dueDate     DateTime?
+
+  ritualId    String
+  ritual      Ritual   @relation(fields: [ritualId], references: [id], onDelete: Cascade)
+
+  ownerId     String?
+  owner       User?    @relation(fields: [ownerId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model RitualActionLog {
+  id        String   @id @default(uuid())
+  action    String   // e.g., "STATUS_CHANGED", "PARTICIPANT_ADDED"
+  details   String?  // Additional context
+  createdAt DateTime @default(now())
+
+  ritualId  String
+  ritual    Ritual   @relation(fields: [ritualId], references: [id], onDelete: Cascade)
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum CommitmentStatus {
+  PENDING
+  COMPLETED
 }
 
 // 5. Estrategia Emergente (Salazar's Framework)
@@ -478,6 +526,19 @@ model StrategicAxis {
 enum TrackingType {
   PERCENTAGE
   UNITS
+}
+
+model StrategicGoal {
+  id           String   @id @default(uuid())
+  statement    String
+  targetValue  Float
+  currentValue Float    @default(0)
+
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model StrategicAccess {

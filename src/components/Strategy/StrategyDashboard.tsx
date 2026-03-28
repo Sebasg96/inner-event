@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { createPurpose, createAreaPurpose, createMega, createObjective, createKeyResult, updateKeyResult, updatePurpose, updateMega, updateObjectiveTitle, createOrganizationalValue, deleteOrganizationalValue, createStrategicAxis, deleteStrategicAxis, deleteObjective, updateObjectiveOwner, updateObjectiveStrategicAxis, updateKeyResultOwner, deleteKeyResult } from '@/app/actions';
+import { createPurpose, createAreaPurpose, createMega, createObjective, createKeyResult, updateKeyResult, updatePurpose, updateMega, updateObjectiveTitle, createOrganizationalValue, deleteOrganizationalValue, createStrategicAxis, deleteStrategicAxis, deleteObjective, updateObjectiveOwner, updateObjectiveStrategicAxis, updateKeyResultOwner, deleteKeyResult, updateKeyResultValue } from '@/app/actions';
 import styles from '@/app/strategy/page.module.css';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Trash2, ChevronRight, ChevronDown } from 'lucide-react';
@@ -13,7 +13,9 @@ import EditableText from '@/components/EditableText';
 import StrategyCascade from './StrategyCascade';
 import KeyResultCreator from './KeyResultCreator';
 import KeyResultProgressModal from './KeyResultProgressModal';
+import KRCheckInModal from './KRCheckInModal';
 import WeightManagement from './WeightManagement';
+import StrategyHealthReport from './StrategyHealthReport';
 import MetasSection from '@/components/Dashboard/v3/MetasSection';
 
 // Define flexible interfaces for the nested strategy data
@@ -88,18 +90,20 @@ type StrategyDashboardProps = {
     strategicAxes?: StrategicAxis[];
     tenantUsers?: { id: string, name: string, lastName: string | null, role: string, area: string | null }[];
     user?: any; // Loosening type to avoid Prisma enum/extra fields mismatches
+    strategicGoals?: any[];
 };
 
-export default function StrategyDashboard({ purpose, areaPurpose, analysisData, organizationalValues = [], strategicAxes = [], tenantUsers = [], user }: StrategyDashboardProps) {
+export default function StrategyDashboard({ purpose, areaPurpose, analysisData, organizationalValues = [], strategicAxes = [], tenantUsers = [], user, strategicGoals = [] }: StrategyDashboardProps) {
     const { dict } = useLanguage();
     const router = useRouter(); // Initialize router for redirects
     // Removed manual editing state
     const theme = useModuleTheme();
     const [showAreaPurpose, setShowAreaPurpose] = useState(!!areaPurpose?.statement);
     const [selectedKR, setSelectedKR] = useState<KeyResult | null>(null);
+    const [isCheckInOpen, setIsCheckInOpen] = useState(false);
     const searchParams = useSearchParams();
-    const initialTab = searchParams.get('tab') === 'WEIGHTS' ? 'WEIGHTS' : 'DASHBOARD';
-    const [viewMode, setViewMode] = useState<'DASHBOARD' | 'WEIGHTS'>(initialTab);
+    const initialTab = searchParams.get('tab') === 'WEIGHTS' ? 'WEIGHTS' : (searchParams.get('tab') === 'HEALTH' ? 'HEALTH' : 'DASHBOARD');
+    const [viewMode, setViewMode] = useState<'DASHBOARD' | 'WEIGHTS' | 'HEALTH'>(initialTab);
     const [expandedObjectives, setExpandedObjectives] = useState<Record<string, boolean>>({});
 
     const toggleObjective = (id: string) => {
@@ -149,6 +153,8 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
         const tab = searchParams.get('tab');
         if (tab === 'WEIGHTS') {
             setViewMode('WEIGHTS');
+        } else if (tab === 'HEALTH') {
+            setViewMode('HEALTH');
         } else {
             setViewMode('DASHBOARD');
         }
@@ -220,10 +226,12 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
     const stats = calculateGlobalStats();
 
     // Handle tab switching
-    const handleTabChange = (mode: 'DASHBOARD' | 'WEIGHTS') => {
+    const handleTabChange = (mode: 'DASHBOARD' | 'WEIGHTS' | 'HEALTH') => {
         const newParams = new URLSearchParams(searchParams.toString());
         if (mode === 'WEIGHTS') {
             newParams.set('tab', 'WEIGHTS');
+        } else if (mode === 'HEALTH') {
+            newParams.set('tab', 'HEALTH');
         } else {
             newParams.delete('tab');
         }
@@ -231,843 +239,357 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
         // The useEffect will pick up the URL change and update viewMode
     };
 
+    // Extract KRs owned by the current user for the Weekly Check-in
+    const extractMyKRs = () => {
+        if (!purpose || !purpose.megas || !user) return [];
+        const result: KeyResult[] = [];
+
+        const traverseObjectives = (objs: Objective[]) => {
+            objs.forEach(obj => {
+                if (obj.keyResults) {
+                    obj.keyResults.forEach(kr => {
+                        if (kr.owner?.id === user.id) {
+                            result.push(kr);
+                        }
+                    });
+                }
+                if (obj.childObjectives) traverseObjectives(obj.childObjectives);
+            });
+        };
+
+        purpose.megas.forEach(mega => traverseObjectives(mega.objectives));
+        return result;
+    };
+
+    const myKRs = extractMyKRs();
+
     return (
-        <div className={styles.container}>
-            <div className="glass-panel" style={{ padding: '1rem 1.5rem', marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div className={styles.container} style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', minHeight: '100vh', padding: '2rem', '--glass-panel-shadow': '0 0 20px hsl(var(--module-strategy) / 0.3)' } as React.CSSProperties}>
+            <div className="glass-panel" style={{ padding: '1.25rem 2rem', marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', borderRadius: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                     <h1 className={styles.header} style={{
-                        fontSize: '1.5rem',
-                        color: 'hsl(var(--primary))',
-                        marginBottom: 0,
-                        borderLeft: '1px solid hsl(var(--border-glass))',
-                        paddingLeft: '1rem',
-                        marginLeft: '0.5rem'
+                        fontSize: '1.75rem',
+                        color: '#fff',
+                        fontWeight: 900,
+                        margin: 0,
+                        letterSpacing: '-0.5px',
+                        textShadow: '0 0 20px rgba(255,255,255,0.1)'
                     }}>{dict.strategy.title}</h1>
 
-                    {/* Unified Stats Container */}
-                    <div style={{ marginLeft: '2rem', display: 'flex', alignItems: 'center', gap: '1.5rem', background: 'rgba(255,255,255,0.6)', padding: '0.4rem 1.2rem', borderRadius: '30px', border: '1px solid rgba(255,255,255,0.8)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+                    {/* Unified Stats Container - Command Center Style */}
+                    <div style={{ marginLeft: '1rem', display: 'flex', alignItems: 'center', gap: '2rem' }}>
 
                         {/* Global Progress */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <div style={{ position: 'relative', width: '42px', height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <svg width="42" height="42" viewBox="0 0 40 40">
-                                    <circle cx="20" cy="20" r="16" fill="none" stroke="#e2e8f0" strokeWidth="4" />
+                            <div style={{ position: 'relative', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <svg width="48" height="48" viewBox="0 0 40 40">
+                                    <circle cx="20" cy="20" r="17" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="4" />
                                     <circle
-                                        cx="20" cy="20" r="16" fill="none" stroke={theme.color} strokeWidth="4"
-                                        strokeDasharray={`${2 * Math.PI * 16}`}
-                                        strokeDashoffset={`${2 * Math.PI * 16 * (1 - stats.progress / 100)}`}
+                                        cx="20" cy="20" r="17" fill="none" stroke={theme.color} strokeWidth="4"
+                                        strokeDasharray={`${2 * Math.PI * 17}`}
+                                        strokeDashoffset={`${2 * Math.PI * 17 * (1 - stats.progress / 100)}`}
                                         strokeLinecap="round"
                                         transform="rotate(-90 20 20)"
-                                        style={{ transition: 'stroke-dashoffset 1s ease' }}
+                                        style={{ transition: 'stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1)', filter: `drop-shadow(0 0 5px ${theme.color})` }}
                                     />
                                 </svg>
-                                <span style={{ position: 'absolute', fontSize: '0.75rem', fontWeight: 800, color: '#1e293b' }}>{stats.progress}%</span>
+                                <span style={{ position: 'absolute', fontSize: '0.85rem', fontWeight: 900, color: '#fff' }}>{stats.progress}%</span>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
-                                <span style={{ fontSize: '0.65rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Cumplimiento</span>
-                                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>Global</span>
+                                <span style={{ fontSize: '0.6rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1px' }}>CUMPLIMIENTO</span>
+                                <span style={{ fontSize: '1rem', fontWeight: 900, color: '#fff' }}>GLOBAL</span>
                             </div>
                         </div>
 
                         {/* Divider */}
-                        <div style={{ width: '1px', height: '24px', background: '#e2e8f0' }}></div>
+                        <div style={{ width: '1px', height: '30px', background: 'rgba(255,255,255,0.1)' }}></div>
 
                         {/* Extra Stats */}
-                        <div style={{ display: 'flex', gap: '1.5rem' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1 }}>
-                                <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1e293b' }}>{stats.objectives}</span>
-                                <span style={{ fontSize: '0.6rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Objetivos</span>
+                        <div style={{ display: 'flex', gap: '2rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1 }}>
+                                <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#fff' }}>{stats.objectives}</span>
+                                <span style={{ fontSize: '0.6rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1px' }}>OBJETIVOS</span>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1 }}>
-                                <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#1e293b' }}>{stats.krs}</span>
-                                <span style={{ fontSize: '0.6rem', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>KRs</span>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1 }}>
+                                <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#fff' }}>{stats.krs}</span>
+                                <span style={{ fontSize: '0.6rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1px' }}>KRs</span>
                             </div>
                         </div>
 
                     </div>
+
                 </div>
-                <NavBar />
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    {myKRs.length > 0 && (
+                        <button
+                            onClick={() => setIsCheckInOpen(true)}
+                            className="premium-button"
+                            style={{
+                                background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                                color: 'white',
+                                border: 'none',
+                                padding: '0.6rem 1.25rem',
+                                borderRadius: '12px',
+                                fontWeight: 800,
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                            }}
+                        >
+                            <span style={{ fontSize: '1.1rem' }}>✅</span>
+                            Check-in Semanal {myKRs.length > 0 && `(${myKRs.length})`}
+                        </button>
+                    )}
+                    <NavBar />
+                </div>
             </div>
 
             {/* View Mode Switcher */}
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', gap: '0.75rem', background: 'rgba(0,0,0,0.3)', padding: '0.5rem', borderRadius: '18px', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '2.5rem', alignSelf: 'flex-start', backdropFilter: 'blur(10px)' }}>
                 <button
                     onClick={() => handleTabChange('DASHBOARD')}
                     style={{
-                        background: 'none',
+                        padding: '0.7rem 1.75rem',
+                        borderRadius: '13px',
                         border: 'none',
-                        borderBottom: viewMode === 'DASHBOARD' ? `2px solid ${theme.color}` : '2px solid transparent',
-                        color: viewMode === 'DASHBOARD' ? theme.color : '#64748b',
-                        fontWeight: 700,
-                        padding: '0.5rem 1rem',
+                        background: viewMode === 'DASHBOARD' ? 'rgba(255,255,255,0.9)' : 'transparent',
+                        color: viewMode === 'DASHBOARD' ? '#0f172a' : 'rgba(255,255,255,0.6)',
+                        fontSize: '0.75rem',
+                        fontWeight: 900,
                         cursor: 'pointer',
-                        transition: 'all 0.2s'
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        boxShadow: viewMode === 'DASHBOARD' ? `0 0 20px rgba(255,255,255,0.15)` : 'none',
+                        letterSpacing: '0.5px'
                     }}
-                    data-testid="strategy-tab-dashboard"
                 >
-                    Tablero Estratégico
+                    TABLERO
                 </button>
                 <button
                     onClick={() => handleTabChange('WEIGHTS')}
                     style={{
-                        background: 'none',
+                        padding: '0.7rem 1.75rem',
+                        borderRadius: '13px',
                         border: 'none',
-                        borderBottom: viewMode === 'WEIGHTS' ? `2px solid ${theme.color}` : '2px solid transparent',
-                        color: viewMode === 'WEIGHTS' ? theme.color : '#64748b',
-                        fontWeight: 700,
-                        padding: '0.5rem 1rem',
+                        background: viewMode === 'WEIGHTS' ? 'rgba(255,255,255,0.9)' : 'transparent',
+                        color: viewMode === 'WEIGHTS' ? '#0f172a' : 'rgba(255,255,255,0.6)',
+                        fontSize: '0.75rem',
+                        fontWeight: 900,
                         cursor: 'pointer',
-                        transition: 'all 0.2s'
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        boxShadow: viewMode === 'WEIGHTS' ? `0 0 20px rgba(255,255,255,0.15)` : 'none',
+                        letterSpacing: '0.5px'
                     }}
-                    data-testid="strategy-tab-weights"
                 >
-                    Ponderaciones
+                    PONDERACIONES
+                </button>
+                <button
+                    onClick={() => handleTabChange('HEALTH')}
+                    style={{
+                        padding: '0.7rem 1.75rem',
+                        borderRadius: '13px',
+                        border: 'none',
+                        background: viewMode === 'HEALTH' ? 'rgba(255,255,255,0.9)' : 'transparent',
+                        color: viewMode === 'HEALTH' ? '#0f172a' : 'rgba(255,255,255,0.6)',
+                        fontSize: '0.75rem',
+                        fontWeight: 900,
+                        cursor: 'pointer',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        boxShadow: viewMode === 'HEALTH' ? `0 0 20px rgba(255,255,255,0.15)` : 'none',
+                        letterSpacing: '0.5px'
+                    }}
+                >
+                    SALUD OKR
                 </button>
             </div>
 
-            {viewMode === 'WEIGHTS' ? (
-                <WeightManagement purpose={purpose as any} themeColor={theme.color} />
-            ) : (
+            {viewMode === 'DASHBOARD' && (
                 <>
-                    {/* Cascade Tree inserted here to be top-level content after header */}
                     <StrategyCascade purpose={purpose as any} />
 
-                    {/* Purpose Section - Pragma Style */}
-                    <section
-                        className={styles.section}
-                        style={{
-                            background: '#ffffff',
-                            borderRadius: '16px',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)',
-                            padding: '2rem',
-                            marginTop: '2rem',
-                            borderLeft: `6px solid ${theme.color}`,
-                            position: 'relative',
-                            overflow: 'hidden'
-                        }}
-                    >
-                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem', gap: '0.75rem' }}>
-                            <div style={{
-                                background: `${theme.color}15`,
-                                padding: '0.5rem',
-                                borderRadius: '8px',
-                                color: theme.color
-                            }}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg>
-                            </div>
-                            <h2 className={styles.sectionTitle} style={{ color: '#0f172a', marginBottom: 0, fontSize: '1.5rem', letterSpacing: '-0.5px' }}>PROPÓSITO</h2>
-                        </div>
-
-                        {purpose ? (
-                            <div className={styles.purposeDisplay} style={{ fontSize: '1.25rem', fontWeight: 500, lineHeight: 1.6 }}>
-                                <EditableText
-                                    initialValue={purpose.statement}
-                                    onSave={async (val) => { await updatePurpose(purpose.id, val); }}
-                                    style={{
-                                        color: '#334155',
-                                        background: 'transparent',
-                                        padding: '0.5rem',
-                                        border: '1px solid transparent'
-                                    }}
-                                    className="white-surface"
-                                    data-testid="strategy-purpose-input"
-                                    required={true}
-                                />
-                            </div>
-                        ) : (
-                            <form action={createPurpose} className={styles.formRow}>
-                                <input
-                                    name="statement"
-                                    placeholder={dict.strategy.purpose.placeholder}
-                                    style={{ flex: 1, background: '#f1f5f9', border: '1px solid #cbd5e1', color: '#334155' }}
-                                    required
-                                    data-testid="strategy-purpose-new-input"
-                                />
-                                <button
-                                    type="submit"
-                                    data-testid="strategy-purpose-submit"
-                                    style={{
-                                        background: theme.color,
-                                        color: 'white',
-                                        border: 'none',
-                                        padding: '0.7rem 1.2rem',
-                                        borderRadius: '8px',
-                                        fontWeight: 700,
-                                        cursor: 'pointer',
-                                        fontSize: '0.85rem',
-                                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                                    }}
-                                >
-                                    Fijar propósito
-                                </button>
-                            </form>
-                        )}
-
-                        {/* Secondary Action: Enable Area Purpose */}
-                        {!showAreaPurpose && (
-                            <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'flex-start' }}>
+                    <section className={`glass-panel ${styles.section}`} style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', boxShadow: '0 8px 32px rgba(0,0,0,0.2)', marginTop: '2rem', borderRadius: '24px', padding: '2rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                            <h2 className={styles.sectionTitle} style={{ marginBottom: 0, color: '#fff', fontSize: '1.2rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px' }}>PROPÓSITOS</h2>
+                            {!showAreaPurpose && (
                                 <button
                                     onClick={() => setShowAreaPurpose(true)}
-                                    style={{
-                                        background: 'transparent',
-                                        border: '1px solid #e2e8f0',
-                                        borderRadius: '8px',
-                                        padding: '0.5rem 1rem',
-                                        color: '#64748b',
-                                        fontSize: '0.85rem',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem',
-                                        transition: 'all 0.2s'
-                                    }}
-                                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = theme.color; e.currentTarget.style.color = theme.color; }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.color = '#64748b'; }}
-                                    data-testid="strategy-add-area-purpose-btn"
+                                    style={{ background: 'transparent', border: 'none', color: theme.color, fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}
                                 >
-                                    <span>+</span> Agregar Propósito de Área
+                                    + Agregar Propósito de Área
                                 </button>
-                            </div>
-                        )}
-                    </section>
+                            )}
+                        </div>
 
-                    {/* Area Purpose Section */}
-                    {showAreaPurpose && (
-                        <section className={`glass-panel ${styles.section}`} style={{ border: theme.border, boxShadow: theme.glow, marginTop: '2rem', position: 'relative' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                                <h2 className={styles.sectionTitle} style={{ color: theme.color, marginBottom: 0 }}>PROPÓSITO DE ÁREA</h2>
-                                <button
-                                    onClick={() => setShowAreaPurpose(false)}
-                                    style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.85rem', textDecoration: 'underline' }}
-                                    title="Ocultar sección"
-                                    data-testid="strategy-hide-area-purpose-btn"
-                                >
-                                    Ocultar
-                                </button>
-                            </div>
-
-                            <div className={styles.purposeDisplay} style={{ fontStyle: 'italic', opacity: 1, color: 'hsl(var(--text-main))' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                            <div className={styles.megaCard} style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '16px', backdropFilter: 'blur(5px)' }}>
+                                <div style={{ fontSize: '0.7rem', fontWeight: 900, color: theme.color, textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '1px' }}>🎯 Organizacional</div>
                                 <EditableText
-                                    initialValue={areaPurpose?.statement || ''}
-                                    onSave={async (val) => {
-                                        if (areaPurpose) {
-                                            await updatePurpose(areaPurpose.id, val);
-                                        } else {
-                                            // Create new Area Purpose
-                                            await createAreaPurpose(val);
-                                        }
-                                    }}
-                                    placeholder="Definir Propósito de Área..."
-                                    style={{ color: 'hsl(var(--text-main))', background: 'rgba(0,0,0,0.03)' }}
-                                    data-testid="strategy-area-purpose-input"
+                                    initialValue={purpose?.statement || ''}
+                                    onSave={async (val) => { if (purpose) await updatePurpose(purpose.id, val); }}
+                                    placeholder="Propósito organizacional..."
+                                    style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}
                                 />
                             </div>
-                        </section>
-                    )}
 
-                    {/* Organizational Values Section */}
-                    <section className={`glass-panel ${styles.section}`} style={{ border: theme.border, boxShadow: theme.glow, marginTop: '2rem' }}>
-                        <h2 className={styles.sectionTitle} style={{ color: theme.color }}>VALORES ORGANIZACIONALES</h2>
+                            {showAreaPurpose && (
+                                <div className={styles.megaCard} style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '16px', backdropFilter: 'blur(5px)', position: 'relative' }}>
+                                    <div style={{ fontSize: '0.7rem', fontWeight: 900, color: theme.color, textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '1px' }}>🏢 de Área</div>
+                                    <EditableText
+                                        initialValue={areaPurpose?.statement || ''}
+                                        onSave={async (val) => {
+                                            if (areaPurpose) await updatePurpose(areaPurpose.id, val);
+                                            else await createAreaPurpose(val);
+                                        }}
+                                        placeholder="Propósito de área..."
+                                        style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}
+                                    />
+                                    {!areaPurpose && (
+                                        <button onClick={() => setShowAreaPurpose(false)} style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>×</button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </section>
 
+                    <section className={`glass-panel ${styles.section}`} style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', boxShadow: '0 8px 32px rgba(0,0,0,0.2)', marginTop: '2rem', borderRadius: '24px', padding: '2rem' }}>
+                        <h2 className={styles.sectionTitle} style={{ color: '#fff', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', fontSize: '1.1rem' }}>VALORES ORGANIZACIONALES</h2>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
                             {organizationalValues.map((value) => (
-                                <div key={value.id} style={{
-                                    background: 'rgb(0, 179, 161)',
-                                    color: '#ffffff',
-                                    borderRadius: '20px',
-                                    padding: '0.2rem 0.6rem',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    fontSize: '0.9rem',
-                                    fontWeight: 700,
-                                    letterSpacing: '0.08em'
-                                }}>
+                                <div key={value.id} style={{ background: 'rgba(0, 179, 161, 0.1)', border: '1px solid rgba(0, 179, 161, 0.3)', color: '#00b3a1', borderRadius: '20px', padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem', fontWeight: 800, boxShadow: '0 0 10px rgba(0, 179, 161, 0.1)' }}>
                                     <span>{value.statement}</span>
                                     <form action={async () => { await deleteOrganizationalValue(value.id); }}>
-                                        <button type="submit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: '1rem', padding: 0, display: 'flex' }}>×</button>
+                                        <button type="submit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00b3a1', padding: 0, fontSize: '1.2rem', lineHeight: 1 }}>×</button>
                                     </form>
                                 </div>
                             ))}
                         </div>
-
                         {organizationalValues.length < 10 && (
-                            <form action={createOrganizationalValue} style={{ display: 'flex', gap: '0.5rem', maxWidth: '400px' }}>
-                                <input
-                                    name="statement"
-                                    placeholder="Agregar nuevo valor..."
-                                    required
-                                    maxLength={50}
-                                    style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
-                                />
-                                <button type="submit" className="btn-secondary" style={{ padding: '0.5rem 1rem' }}>+</button>
+                            <form action={createOrganizationalValue} style={{ display: 'flex', gap: '0.75rem', maxWidth: '400px' }}>
+                                <input name="statement" placeholder="Nuevo valor..." required maxLength={50} style={{ flex: 1, padding: '0.6rem 1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff' }} />
+                                <button type="submit" className="btn-secondary" style={{ background: theme.color, border: 'none', borderRadius: '12px', color: '#fff', width: '40px', fontWeight: 900 }}>+</button>
                             </form>
                         )}
                     </section>
 
-                    {/* Strategic Axes Section */}
-                    <section className={`glass-panel ${styles.section}`} style={{ border: theme.border, boxShadow: theme.glow, marginTop: '2rem' }}>
-                        <h2 className={styles.sectionTitle} style={{ color: theme.color }}>EJES ESTRATÉGICOS</h2>
-
+                    <section className={`glass-panel ${styles.section}`} style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', boxShadow: '0 8px 32px rgba(0,0,0,0.2)', marginTop: '2rem', borderRadius: '24px', padding: '2rem' }}>
+                        <h2 className={styles.sectionTitle} style={{ color: '#fff', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', fontSize: '1.1rem' }}>EJES ESTRATÉGICOS</h2>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
                             {strategicAxes.map((axis) => (
-                                <div key={axis.id} style={{
-                                    background: 'rgb(0, 179, 161)',
-                                    color: '#ffffff',
-                                    borderRadius: '20px',
-                                    padding: '0.2rem 0.6rem',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    fontSize: '0.9rem',
-                                    fontWeight: 700,
-                                    letterSpacing: '0.08em'
-                                }}>
+                                <div key={axis.id} style={{ background: 'rgba(0, 179, 161, 0.1)', border: '1px solid rgba(0, 179, 161, 0.3)', color: '#00b3a1', borderRadius: '20px', padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem', fontWeight: 800, boxShadow: '0 0 10px rgba(0, 179, 161, 0.1)' }}>
                                     <span>{axis.statement}</span>
                                     <form action={async () => { await deleteStrategicAxis(axis.id); }}>
-                                        <button type="submit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: '1rem', padding: 0, display: 'flex' }}>×</button>
+                                        <button type="submit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00b3a1', padding: 0, fontSize: '1.2rem', lineHeight: 1 }}>×</button>
                                     </form>
                                 </div>
                             ))}
                         </div>
-
                         {strategicAxes.length < 5 && (
-                            <form action={createStrategicAxis} style={{ display: 'flex', gap: '0.5rem', maxWidth: '400px' }}>
-                                <input
-                                    name="statement"
-                                    placeholder="Agregar nuevo eje estratégico..."
-                                    required
-                                    maxLength={100}
-                                    style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: '1px solid #cbd5e1' }}
-                                />
-                                <button type="submit" className="btn-secondary" style={{ padding: '0.5rem 1rem' }}>+</button>
+                            <form action={createStrategicAxis} style={{ display: 'flex', gap: '0.75rem', maxWidth: '400px' }}>
+                                <input name="statement" placeholder="Nuevo eje..." required maxLength={100} style={{ flex: 1, padding: '0.6rem 1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff' }} />
+                                <button type="submit" className="btn-secondary" style={{ background: theme.color, border: 'none', borderRadius: '12px', color: '#fff', width: '40px', fontWeight: 900 }}>+</button>
                             </form>
                         )}
-                    </section>
-
-                    {/* Metas Estratégicas Section */}
-                    <MetasSection themeColor={theme.color} />
-
-                    {/* Megas Section */}
-                    {purpose && (
-                        <section className={`glass-panel ${styles.section}`} style={{ border: theme.border, boxShadow: theme.glow, marginTop: '2rem' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                                <h2 className={styles.sectionTitle} style={{ marginBottom: 0, color: theme.color }}>MEGAS (Gran Destino)</h2>
-
-                                {/* Mega Form with AI */}
-                                {purpose.megas.length === 0 && (
-                                    <MegaCreator purposeId={purpose.id} areaPurpose={areaPurpose?.statement || ''} placeholder={dict.strategy.megas.placeholder} themeColor={theme.color} />
-                                )}
-                            </div>
-
-                            <div className={styles.megaGrid}>
-                                {purpose.megas.map((mega, i) => (
-                                    <div key={mega.id} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '4rem' }}>
-                                        {/* Mega Content Layout */}
-                                        <div className={styles.megaContentWrapper}>
-                                            {/* Mega Header Card */}
-                                            <div className={styles.megaCard} style={{
-                                                background: 'white',
-                                                borderRadius: '16px',
-                                                padding: '1.5rem 2rem',
-                                                border: 'none',
-                                                boxShadow: '0 4px 20px rgba(0,0,0,0.05)',
-                                                display: 'flex',
-                                                justifyContent: 'space-between',
-                                                alignItems: 'center',
-                                                position: 'relative',
-                                                overflow: 'hidden'
-                                            }}>
-                                                <div style={{ position: 'absolute', top: 0, left: 0, width: '6px', height: '100%', background: theme.color }}></div>
-
-                                                <div style={{ flex: 1 }}>
-                                                    <div style={{
-                                                        textTransform: 'uppercase',
-                                                        letterSpacing: '2px',
-                                                        fontSize: '0.75rem',
-                                                        fontWeight: 800,
-                                                        color: theme.color,
-                                                        marginBottom: '0.25rem',
-                                                        opacity: 0.8
-                                                    }}>
-                                                        MEGA {i + 1}
-                                                    </div>
-                                                    <h3 className={styles.megaTitle} style={{
-                                                        marginBottom: 0,
-                                                        fontWeight: 700,
-                                                        color: 'black',
-                                                        wordBreak: 'break-word',
-                                                        overflowWrap: 'break-word',
-                                                        display: 'block',
-                                                        width: '100%',
-                                                        lineHeight: '1.3'
-                                                    }}>
-                                                        <EditableText
-                                                            initialValue={mega.statement}
-                                                            onSave={async (val) => { await updateMega(mega.id, val); }}
-                                                        />
-                                                    </h3>
-                                                </div>
-                                                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                                                    <span style={{
-                                                        background: '#0f172a',
-                                                        color: 'white',
-                                                        padding: '0.4rem 1rem',
-                                                        borderRadius: '20px',
-                                                        fontSize: '0.8rem',
-                                                        fontWeight: 500
-                                                    }}>
-                                                        Vence: {mega.deadline ? new Date(mega.deadline).toLocaleDateString('es-ES', { timeZone: 'UTC' }) : 'Sin fecha'}
-                                                    </span>
-                                                    <button
-                                                        onClick={async () => {
-                                                            if (window.confirm("⚠️ ATENCIÓN: ¿Estás seguro de que deseas eliminar esta Mega?\n\nEsta acción eliminará TODOS los Objetivos y Resultados Clave (KRs) asociados. No se puede deshacer.")) {
-                                                                const { deleteMega } = await import('@/app/actions');
-                                                                await deleteMega(mega.id);
-                                                            }
-                                                        }}
-                                                        style={{
-                                                            background: 'none',
-                                                            border: '1px solid #ef4444',
-                                                            color: '#ef4444',
-                                                            borderRadius: '50%',
-                                                            width: '32px',
-                                                            height: '32px',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            cursor: 'pointer',
-                                                            transition: 'all 0.2s'
-                                                        }}
-                                                        title="Eliminar Mega Completa"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            {/* Objectives Grid */}
-                                            <div style={{
-                                                background: '#f1f5f9',
-                                                borderRadius: '16px',
-                                                padding: '2rem',
-                                            }}>
-                                                {/* Grid Header */}
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
-                                                    <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                        <span style={{ fontSize: '1.4rem' }}>🎯</span> OBJETIVOS ESTRATÉGICOS
-                                                    </h4>
-
-                                                    <form action={createObjective} style={{ display: 'flex', gap: '0.75rem', flex: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-                                                        <input type="hidden" name="megaId" value={mega.id} />
-                                                        <input
-                                                            name="statement"
-                                                            placeholder="Definir nuevo objetivo..."
-                                                            required
-                                                            className={styles.visiblePlaceholder}
-                                                            style={{
-                                                                flex: 1,
-                                                                padding: '0.7rem 1rem',
-                                                                borderRadius: '8px',
-                                                                border: '1px solid #cbd5e1',
-                                                                background: 'white',
-                                                                fontSize: '0.9rem',
-                                                                minWidth: '200px',
-                                                                color: 'black'
-                                                            }}
-                                                        />
-
-                                                        {/* Strategic Axis Selector */}
-                                                        <select
-                                                            name="strategicAxisId"
-                                                            style={{
-                                                                padding: '0.7rem',
-                                                                borderRadius: '8px',
-                                                                border: '1px solid #cbd5e1',
-                                                                fontSize: '0.9rem',
-                                                                background: 'white',
-                                                                color: '#475569'
-                                                            }}
-                                                        >
-                                                            <option value="none">Sin Eje Estratégico</option>
-                                                            {strategicAxes.map(axis => (
-                                                                <option key={axis.id} value={axis.id}>{axis.statement}</option>
-                                                            ))}
-                                                        </select>
-
-                                                        <button
-                                                            type="submit"
-                                                            style={{
-                                                                background: theme.color,
-                                                                color: 'white',
-                                                                border: 'none',
-                                                                padding: '0.7rem 1.2rem',
-                                                                borderRadius: '8px',
-                                                                fontWeight: 700,
-                                                                cursor: 'pointer',
-                                                                fontSize: '0.85rem',
-                                                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                                                            }}
-                                                        >
-                                                            + Objetivo
-                                                        </button>
-                                                    </form>
-                                                </div>
-
-                                                <div className={styles.objectivesGrid}>
-                                                    {mega.objectives.map((obj, j) => (
-                                                        <div key={obj.id} className={styles.objectiveItem} style={{
-                                                            background: 'white',
-                                                            borderRadius: '12px',
-                                                            padding: '1.25rem',
-                                                            boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                                                            border: '1px solid #e2e8f0',
-                                                            display: 'flex',
-                                                            flexDirection: 'column',
-                                                            gap: '1rem',
-                                                            height: '100%',
-                                                            minHeight: '200px'
-                                                        }}>
-                                                            <div className={styles.objectiveTitle} style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1.2rem', color: '#1e293b', display: 'flex', gap: '0.75rem', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-
-                                                                {/* Title Section (Flex Grow) */}
-                                                                <div style={{ display: 'flex', gap: '0.5rem', flex: '1 1 300px', minWidth: 0 }}>
-                                                                    <span style={{ color: theme.color, opacity: 0.8, fontSize: '0.75rem', whiteSpace: 'nowrap', marginTop: '0.2rem' }}>#{j + 1}</span>
-                                                                    <div style={{ flex: 1 }}>
-                                                                        <EditableText
-                                                                            initialValue={obj.statement}
-                                                                            onSave={async (val) => { await updateObjectiveTitle(obj.id, val); }}
-                                                                        />
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Controls Section (Keeps together) */}
-                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', alignSelf: 'flex-start', marginTop: '0.1rem' }}>
-                                                                    {/* Expansion Toggle */}
-                                                                    <button
-                                                                        onClick={() => toggleObjective(obj.id)}
-                                                                        style={{
-                                                                            background: 'none',
-                                                                            border: 'none',
-                                                                            cursor: 'pointer',
-                                                                            color: theme.color,
-                                                                            display: 'flex',
-                                                                            alignItems: 'center',
-                                                                            gap: '4px',
-                                                                            padding: '4px 8px',
-                                                                            borderRadius: '4px',
-                                                                            backgroundColor: `${theme.color}08`,
-                                                                            fontSize: '0.75rem',
-                                                                            fontWeight: 600,
-                                                                            transition: 'all 0.2s ease'
-                                                                        }}
-                                                                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = `${theme.color}15`)}
-                                                                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = `${theme.color}08`)}
-                                                                    >
-                                                                        <span>{expandedObjectives[obj.id] ? 'Ocultar KRs' : 'Ver KRs'}</span>
-                                                                        {expandedObjectives[obj.id] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                                                                    </button>
-
-                                                                    {/* Objective Progress Bar */}
-                                                                    <div style={{ width: '50px', height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
-                                                                        {(() => {
-                                                                            const progress = calculateObjectiveProgress(obj);
-                                                                            return (
-                                                                                <div style={{
-                                                                                    width: `${Math.min(progress, 100)}%`,
-                                                                                    height: '100%',
-                                                                                    background: progress >= 100 ? '#10b981' : theme.color,
-                                                                                    transition: 'width 0.5s ease'
-                                                                                }} title={`Progreso: ${progress}%`} />
-                                                                            );
-                                                                        })()}
-                                                                    </div>
-
-                                                                    {/* Strategic Axis Mini-UI */}
-                                                                    <div style={{ position: 'relative' }}>
-                                                                        <select
-                                                                            value={obj.strategicAxisId || "none"}
-                                                                            onChange={async (e) => {
-                                                                                const newAxisId = e.target.value === "none" ? null : e.target.value;
-                                                                                await updateObjectiveStrategicAxis(obj.id, newAxisId);
-                                                                            }}
-                                                                            style={{
-                                                                                appearance: 'none',
-                                                                                backgroundColor: obj.strategicAxisId ? 'rgb(0, 179, 161)' : 'transparent',
-                                                                                border: obj.strategicAxisId ? 'none' : '1px dashed #cbd5e1',
-                                                                                borderRadius: '20px',
-                                                                                padding: '2px 8px',
-                                                                                paddingRight: '22px',
-                                                                                fontSize: '0.65rem',
-                                                                                color: obj.strategicAxisId ? '#ffffff' : '#94a3b8',
-                                                                                fontWeight: obj.strategicAxisId ? 700 : 500,
-                                                                                letterSpacing: obj.strategicAxisId ? '0.04em' : 'normal',
-                                                                                cursor: 'pointer',
-                                                                                maxWidth: '120px',
-                                                                                whiteSpace: 'nowrap',
-                                                                                overflow: 'hidden',
-                                                                                textOverflow: 'ellipsis',
-                                                                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='${obj.strategicAxisId ? 'white' : '%2394a3b8'}' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
-                                                                                backgroundRepeat: 'no-repeat',
-                                                                                backgroundPosition: 'right 6px center'
-                                                                            }}
-                                                                            title={obj.strategicAxisId ? `Eje Estratégico: ${strategicAxes.find(a => a.id === obj.strategicAxisId)?.statement || 'Desconocido'}` : "Vincular a Eje Estratégico"}
-                                                                        >
-                                                                            <option value="none">🧭 Eje</option>
-                                                                            {strategicAxes.map(a => (
-                                                                                <option key={a.id} value={a.id}>
-                                                                                    {a.statement}
-                                                                                </option>
-                                                                            ))}
-                                                                        </select>
-                                                                    </div>
-
-                                                                    {/* Owner Selection Mini-UI */}
-                                                                    <div style={{ position: 'relative' }}>
-                                                                        <select
-                                                                            value={obj.owner?.id || ""}
-                                                                            onChange={async (e) => {
-                                                                                const newOwnerId = e.target.value === "" ? null : e.target.value;
-                                                                                await updateObjectiveOwner(obj.id, newOwnerId);
-                                                                            }}
-                                                                            style={{
-                                                                                appearance: 'none',
-                                                                                backgroundColor: obj.owner ? '#e0f2fe' : 'transparent',
-                                                                                border: obj.owner ? '1px solid #7dd3fc' : '1px dashed #cbd5e1',
-                                                                                borderRadius: '20px',
-                                                                                padding: '2px 8px',
-                                                                                paddingRight: '20px',
-                                                                                fontSize: '0.75rem',
-                                                                                color: obj.owner ? '#0369a1' : '#94a3b8',
-                                                                                cursor: 'pointer',
-                                                                                maxWidth: '120px',
-                                                                                whiteSpace: 'nowrap',
-                                                                                overflow: 'hidden',
-                                                                                textOverflow: 'ellipsis',
-                                                                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
-                                                                                backgroundRepeat: 'no-repeat',
-                                                                                backgroundPosition: 'right 4px center'
-                                                                            }}
-                                                                            title={obj.owner ? `Responsable actual: ${obj.owner.name}` : "Asignar responsable"}
-                                                                        >
-                                                                            <option value="">👤 Asignar</option>
-                                                                            {tenantUsers.map(u => (
-                                                                                <option key={u.id} value={u.id}>
-                                                                                    {u.name} {u.lastName || ''}
-                                                                                </option>
-                                                                            ))}
-                                                                        </select>
-                                                                    </div>
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            if (window.confirm("¿Estás seguro de que deseas eliminar este objetivo?")) {
-                                                                                deleteObjective(obj.id);
-                                                                            }
-                                                                        }}
-                                                                        style={{
-                                                                            background: 'none',
-                                                                            border: 'none',
-                                                                            cursor: 'pointer',
-                                                                            color: '#ef4444',
-                                                                            opacity: 0.4,
-                                                                            padding: '2px'
-                                                                        }}
-                                                                        onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-                                                                        onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.4')}
-                                                                    >
-                                                                        <Trash2 size={14} />
-                                                                    </button>
-                                                                </div>
+                    <MetasSection themeColor={theme.color} metas={strategicGoals} />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
+                            <h2 className={styles.sectionTitle} style={{ marginBottom: 0, color: '#fff', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', fontSize: '1.2rem' }}>MEGAS</h2>
+                            {purpose && <MegaCreator purposeId={purpose.id} areaPurpose={areaPurpose?.statement || ''} placeholder={dict.strategy.megas.placeholder} themeColor={theme.color} />}
+                        </div>
+                        <div className={styles.megaGrid}>
+                            {purpose?.megas.map((mega, i) => (
+                                <div key={mega.id} style={{ marginBottom: '3.5rem' }}>
+                                    <div className={styles.megaCard} style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '24px', padding: '2rem', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 10px 40px rgba(0,0,0,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', overflow: 'hidden', backdropFilter: 'blur(10px)' }}>
+                                        <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: theme.color, boxShadow: `0 0 15px ${theme.color}` }}></div>
+                                        <div>
+                                            <div style={{ fontSize: '0.7rem', fontWeight: 950, color: theme.color, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '0.25rem' }}>MEGA {i + 1}</div>
+                                            <h3 style={{ margin: 0, fontWeight: 900, color: '#fff', fontSize: '1.35rem' }}><EditableText initialValue={mega.statement} onSave={async (val) => await updateMega(mega.id, val)} /></h3>
+                                        </div>
+                                        <button onClick={async () => { if (confirm("¿Eliminar Mega?")) (await import('@/app/actions')).deleteMega(mega.id); }} style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#fca5a5', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}><Trash2 size={16} /></button>
+                                    </div>
+                                    <div style={{ background: 'rgba(255,255,255,0.01)', borderRadius: '24px', padding: '2rem', marginTop: '1.5rem', border: '1px solid rgba(255,255,255,0.03)' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                                            <div style={{ width: '3px', height: '14px', background: theme.color, borderRadius: '2px' }} />
+                                            <h3 style={{ margin: 0, color: 'rgba(255,255,255,0.5)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1.5px', fontSize: '0.8rem' }}>
+                                                {dict.strategy.objectives.title}
+                                            </h3>
+                                        </div>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+                                            {mega.objectives.map((obj, j) => (
+                                                <div key={obj.id} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '20px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.08)', transition: 'transform 0.2s, background 0.2s', position: 'relative' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
+                                                        <div style={{ flex: 1 }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                                                <span style={{ fontSize: '0.65rem', fontWeight: 900, color: theme.color, background: `${theme.color}20`, padding: '2px 8px', borderRadius: '6px' }}>OBJ {j + 1}</span>
                                                             </div>
-
-                                                            <div style={{ flex: 1, display: expandedObjectives[obj.id] ? 'block' : 'none' }}>
-                                                                <div className={styles.krList}>
-                                                                    {obj.keyResults.map((kr, k) => (
-                                                                        /* Simplified KR Item for Grid */
-                                                                        <div key={kr.id} style={{
-                                                                            background: '#f8fafc',
-                                                                            padding: '0.75rem',
-                                                                            borderRadius: '8px',
-                                                                            border: '1px solid #e2e8f0',
-                                                                            marginBottom: '0.5rem'
-                                                                        }}>
-                                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '0.5rem' }}>
-                                                                                <div style={{ flex: 1, minWidth: 0, fontSize: '0.8rem', color: '#475569', fontWeight: 500, lineHeight: '1.4' }}>
-                                                                                    {kr.statement}
-                                                                                </div>
-
-                                                                                {/* KR Controls Group */}
-                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-                                                                                    {/* KR Owner Selector */}
-                                                                                    <div style={{ position: 'relative' }}>
-                                                                                        <select
-                                                                                            value={kr.owner?.id || ""}
-                                                                                            onChange={async (e) => {
-                                                                                                e.stopPropagation(); // Prevent drag/click conflcits
-                                                                                                const newOwnerId = e.target.value === "" ? null : e.target.value;
-                                                                                                await updateKeyResultOwner(kr.id, newOwnerId);
-                                                                                            }}
-                                                                                            onClick={(e) => e.stopPropagation()}
-                                                                                            style={{
-                                                                                                appearance: 'none',
-                                                                                                backgroundColor: kr.owner ? '#e0f2fe' : 'transparent',
-                                                                                                border: kr.owner ? '1px solid #7dd3fc' : '1px dashed #cbd5e1',
-                                                                                                borderRadius: '20px',
-                                                                                                padding: '1px 6px',
-                                                                                                paddingRight: '16px',
-                                                                                                fontSize: '0.65rem',
-                                                                                                color: kr.owner ? '#0369a1' : '#94a3b8',
-                                                                                                cursor: 'pointer',
-                                                                                                maxWidth: '80px',
-                                                                                                whiteSpace: 'nowrap',
-                                                                                                overflow: 'hidden',
-                                                                                                textOverflow: 'ellipsis',
-                                                                                                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
-                                                                                                backgroundRepeat: 'no-repeat',
-                                                                                                backgroundPosition: 'right 2px center'
-                                                                                            }}
-                                                                                            title={kr.owner ? `Responsable actual: ${kr.owner.name}` : "Asignar responsable"}
-                                                                                        >
-                                                                                            <option value="">👤</option>
-                                                                                            {tenantUsers.map(u => (
-                                                                                                <option key={u.id} value={u.id}>
-                                                                                                    {u.name} {u.lastName || ''}
-                                                                                                </option>
-                                                                                            ))}
-                                                                                        </select>
-                                                                                    </div>
-                                                                                    <div
-                                                                                        onClick={() => setSelectedKR(kr)}
-                                                                                        style={{
-                                                                                            fontSize: '0.7rem',
-                                                                                            fontWeight: 700,
-                                                                                            color: theme.color,
-                                                                                            background: 'white',
-                                                                                            padding: '2px 6px',
-                                                                                            borderRadius: '4px',
-                                                                                            border: '1px solid #e2e8f0',
-                                                                                            cursor: 'pointer',
-                                                                                            whiteSpace: 'nowrap',
-                                                                                            height: 'fit-content'
-                                                                                        }}
-                                                                                    >
-                                                                                        {Math.round((kr.currentValue / kr.targetValue) * 100)}%
-                                                                                    </div>
-                                                                                    <button
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            if (window.confirm("¿Estás seguro de que deseas eliminar este Resultado Clave (KR)?")) {
-                                                                                                deleteKeyResult(kr.id);
-                                                                                            }
-                                                                                        }}
-                                                                                        style={{
-                                                                                            background: 'none',
-                                                                                            border: 'none',
-                                                                                            cursor: 'pointer',
-                                                                                            color: '#ef4444',
-                                                                                            padding: '0 4px',
-                                                                                            opacity: 0.4,
-                                                                                            display: 'flex',
-                                                                                            alignItems: 'center'
-                                                                                        }}
-                                                                                        onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-                                                                                        onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.4')}
-                                                                                        title="Eliminar KR"
-                                                                                    >
-                                                                                        <Trash2 size={12} />
-                                                                                    </button>
-                                                                                </div>
-                                                                            </div>
-                                                                            {/* Dual Progress Bars Container */}
-                                                                            <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-
-                                                                                {/* 1. Intrinsic KR Progress */}
-                                                                                <div
-                                                                                    onClick={() => setSelectedKR(kr)}
-                                                                                    style={{ cursor: 'pointer' }}
-                                                                                    title="Clic para actualizar avance del KR"
-                                                                                >
-                                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                                                                                        <span style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600 }}>Avance KR</span>
-                                                                                        <span style={{ fontSize: '0.65rem', color: '#0ea5e9', fontWeight: 700 }}>{Math.round((kr.currentValue / kr.targetValue) * 100)}%</span>
-                                                                                    </div>
-                                                                                    <div style={{ height: '6px', background: '#e0f2fe', borderRadius: '3px', overflow: 'hidden' }}>
-                                                                                        <div style={{
-                                                                                            width: `${Math.min((kr.currentValue / kr.targetValue) * 100, 100)}%`,
-                                                                                            height: '100%',
-                                                                                            background: '#0ea5e9',
-                                                                                            borderRadius: '3px',
-                                                                                            transition: 'width 0.5s ease'
-                                                                                        }} />
-                                                                                    </div>
-                                                                                </div>
-
-                                                                                {/* 2. Linked Initiatives Progress */}
-                                                                                <div
-                                                                                    onClick={() => router.push('/strategy/execution')}
-                                                                                    style={{ cursor: 'pointer' }}
-                                                                                    title="Clic para ver tablero kanban"
-                                                                                >
-                                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2px' }}>
-                                                                                        <span style={{ fontSize: '0.65rem', color: '#64748b', fontWeight: 600 }}>Iniciativas</span>
-                                                                                        {kr.initiatives && kr.initiatives.length > 0 && (
-                                                                                            <span style={{ fontSize: '0.65rem', color: theme.color, fontWeight: 700 }}>
-                                                                                                {Math.round(kr.initiatives.reduce((acc, curr) => acc + (curr.progress || 0), 0) / kr.initiatives.length)}%
-                                                                                            </span>
-                                                                                        )}
-                                                                                    </div>
-                                                                                    <div style={{
-                                                                                        height: kr.initiatives && kr.initiatives.length > 0 ? '6px' : '20px',
-                                                                                        background: '#f1f5f9',
-                                                                                        borderRadius: '3px',
-                                                                                        overflow: 'hidden',
-                                                                                        border: '1px solid #e2e8f0',
-                                                                                        transition: 'height 0.2s ease'
-                                                                                    }}>
-                                                                                        {kr.initiatives && kr.initiatives.length > 0 ? (
-                                                                                            <div style={{
-                                                                                                height: '100%',
-                                                                                                width: `${Math.round(kr.initiatives.reduce((acc, curr) => acc + (curr.progress || 0), 0) / kr.initiatives.length)}%`,
-                                                                                                background: theme.color,
-                                                                                                opacity: 0.8,
-                                                                                                borderRadius: '2px',
-                                                                                                transition: 'width 0.5s ease'
-                                                                                            }} />
-                                                                                        ) : (
-                                                                                            <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.6rem', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                                                                                + Vincular
-                                                                                            </div>
-                                                                                        )}
-                                                                                    </div>
-                                                                                </div>
-
-                                                                            </div>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                                <KeyResultCreator objectiveId={obj.id} megaDeadline={mega.deadline} />
-                                                            </div>
+                                                            <h4 style={{ margin: 0, color: '#fff', fontSize: '1rem', fontWeight: 800, lineHeight: 1.4 }}>
+                                                                <EditableText initialValue={obj.statement} onSave={async (val) => await updateObjectiveTitle(obj.id, val)} />
+                                                            </h4>
                                                         </div>
-                                                    ))}
+                                                        <button onClick={() => toggleObjective(obj.id)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '8px', padding: '4px' }}>
+                                                            {expandedObjectives[obj.id] ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                                                        </button>
+                                                    </div>
+
+                                                    {expandedObjectives[obj.id] && (
+                                                        <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                                            {obj.keyResults.map(kr => (
+                                                                <div key={kr.id} style={{ background: 'rgba(0,0,0,0.2)', padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', transition: 'border 0.2s' }}>
+                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+                                                                        <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>{kr.statement}</span>
+                                                                        <button
+                                                                            onClick={() => setSelectedKR(kr)}
+                                                                            style={{
+                                                                                background: `${theme.color}20`,
+                                                                                border: `1px solid ${theme.color}40`,
+                                                                                color: theme.color,
+                                                                                borderRadius: '8px',
+                                                                                fontSize: '0.75rem',
+                                                                                fontWeight: 900,
+                                                                                padding: '4px 8px',
+                                                                                cursor: 'pointer',
+                                                                                boxShadow: `0 0 10px ${theme.color}15`
+                                                                            }}
+                                                                        >
+                                                                            {kr.targetValue !== 0 ? Math.round((kr.currentValue / kr.targetValue) * 100) : 0}%
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                            <KeyResultCreator objectiveId={obj.id} megaDeadline={mega.deadline} />
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            </div>
+                                            ))}
+                                            <form action={createObjective} style={{ display: 'flex', gap: '0.5rem', flex: '1 1 300px' }}>
+                                                <input type="hidden" name="megaId" value={mega.id} />
+                                                <input name="statement" placeholder="Nuevo objetivo..." required style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                                                <button type="submit" style={{ background: theme.color, color: 'white', border: 'none', borderRadius: '8px', padding: '0 1rem' }}>+</button>
+                                            </form>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        </section>
-                    )}
+                                </div>
+                            ))}
+                        </div>
+                    </section>
                 </>
             )}
 
-            {/* Modal para actualizar progreso */}
+            {viewMode === 'WEIGHTS' && (
+                <WeightManagement purpose={purpose as any} themeColor={theme.color} />
+            )}
+
+            {viewMode === 'HEALTH' && (
+                <StrategyHealthReport themeColor={theme.color} />
+            )}
+
             {selectedKR && (
-                <KeyResultProgressModal
-                    isOpen={!!selectedKR}
-                    onClose={() => setSelectedKR(null)}
-                    kr={selectedKR}
-                    userRole={user?.role}
-                />
+                <KeyResultProgressModal isOpen={!!selectedKR} onClose={() => setSelectedKR(null)} kr={selectedKR} userRole={user?.role} />
+            )}
+
+            {isCheckInOpen && (
+                <KRCheckInModal isOpen={isCheckInOpen} onClose={() => setIsCheckInOpen(false)} keyResults={myKRs} />
             )}
         </div>
     );
@@ -1099,14 +621,14 @@ function MegaCreator({ purposeId, areaPurpose, placeholder, themeColor }: { purp
     return (
         <form action={createMega} className={styles.formRow}>
             <input type="hidden" name="purposeId" value={purposeId} />
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <input
                     name="statement"
                     placeholder={placeholder}
                     required
                     defaultValue={suggestion}
                     key={suggestion} // re-render on suggestion
-                    style={{ minWidth: '300px' }}
+                    style={{ minWidth: '350px', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.6rem 1rem', color: '#fff' }}
                 />
                 <button
                     type="button"
@@ -1128,24 +650,25 @@ function MegaCreator({ purposeId, areaPurpose, placeholder, themeColor }: { purp
                     {loading ? '⏳' : '✨'}
                 </button>
             </div>
-            <input name="deadline" type="date" required />
+            <input name="deadline" type="date" required style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.6rem 1rem', color: '#fff', colorScheme: 'dark' }} />
             <button
                 type="submit"
                 style={{
-                    background: '#0f172a',
+                    background: themeColor,
                     color: 'white',
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '50%',
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '14px',
                     border: 'none',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                    fontSize: '1.2rem',
-                    fontWeight: 'bold',
-                    marginLeft: '1rem'
+                    boxShadow: `0 0 15px ${themeColor}30`,
+                    fontSize: '1.4rem',
+                    fontWeight: 900,
+                    marginLeft: '0.5rem',
+                    transition: 'all 0.2s'
                 }}
                 title="Agregar Mega"
             >

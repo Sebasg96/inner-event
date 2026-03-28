@@ -39,6 +39,7 @@ export interface DashboardData {
   mega: MegaData | null;
   axes: AxisData[];
   objectivesWithoutAxis: ObjectiveData[];
+  strategicGoals: { id: string; statement: string; targetValue: number; currentValue: number }[];
 }
 
 export interface TreeNodeData {
@@ -174,6 +175,12 @@ export async function getDashboardData(cutoffDate?: string): Promise<DashboardDa
     ? Math.round(allObjectives.reduce((s, o) => s + o.progress, 0) / allObjectives.length)
     : 0;
 
+  const strategicGoals = await prisma.strategicGoal.findMany({
+    where: { tenantId },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true, statement: true, targetValue: true, currentValue: true }
+  });
+
   return {
     mega: mega
       ? {
@@ -185,5 +192,6 @@ export async function getDashboardData(cutoffDate?: string): Promise<DashboardDa
       : null,
     axes: axesData,
     objectivesWithoutAxis: mappedNoAxis,
+    strategicGoals,
   };
 }

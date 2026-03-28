@@ -1,30 +1,23 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { Trash2, Edit2, Check, X } from 'lucide-react';
+import { createStrategicGoal, updateStrategicGoalValue, deleteStrategicGoal } from '@/app/actions';
+
+interface Meta {
+    id: string;
+    statement: string;
+    targetValue: number;
+    currentValue: number;
+}
 
 interface MetasSectionProps {
     themeColor?: string;
+    metas?: Meta[];
 }
-
-interface Meta {
-    label: string;
-    target: number;
-    current: number;
-}
-
-// Initial mock strategic goals
-const INITIAL_METAS: Meta[] = [
-    { label: 'Reducir en 30%\nlos eventos adversos', target: 30, current: 18 },
-    { label: 'NPS GLOBAL\n> 80%', target: 80, current: 65 },
-    { label: '5 servicios nuevos\nde alta complejidad', target: 5, current: 2 },
-    { label: 'Digitalización\n6 procesos críticos', target: 6, current: 3 },
-    { label: 'Margen EBITDA\n>15%', target: 15, current: 9 },
-    { label: 'Rotación de\npersonal crítico ≤10%', target: 10, current: 7 },
-];
 
 function DonutChart({ current, target, color }: { current: number; target: number; color: string }) {
-    const progress = Math.min(100, Math.round((current / target) * 100));
+    const progress = Math.min(100, Math.round((current / Math.max(1, target)) * 100));
     const size = 72;
     const r = 28;
     const circ = 2 * Math.PI * r;
@@ -62,10 +55,10 @@ const COLORS = [
     'hsl(180, 90%, 50%)',
 ];
 
-export default function MetasSection({ themeColor }: MetasSectionProps = {}) {
-    const [metas, setMetas] = useState<Meta[]>(INITIAL_METAS);
+export default function MetasSection({ themeColor, metas = [] }: MetasSectionProps) {
+    const [isPending, startTransition] = useTransition();
     const [isAdding, setIsAdding] = useState(false);
-    const [editingIndex, setEditingIndex] = useState<number | null>(null);
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [newLabel, setNewLabel] = useState('');
     const [newProgress, setNewProgress] = useState(50);
     const [editProgress, setEditProgress] = useState(50);
@@ -78,29 +71,27 @@ export default function MetasSection({ themeColor }: MetasSectionProps = {}) {
 
     const handleAddMeta = () => {
         if (!newLabel.trim()) return;
-        const newMeta: Meta = {
-            label: newLabel,
-            target: 100,
-            current: newProgress
-        };
-        setMetas([...metas, newMeta]);
-        setNewLabel('');
-        setNewProgress(50);
-        setIsAdding(false);
+        startTransition(async () => {
+            await createStrategicGoal(newLabel, 100, newProgress);
+            setNewLabel('');
+            setNewProgress(50);
+            setIsAdding(false);
+        });
     };
 
-    const handleUpdateMeta = (index: number) => {
-        const updatedMetas = [...metas];
-        updatedMetas[index].current = editProgress;
-        setMetas(updatedMetas);
-        setEditingIndex(null);
+    const handleUpdateMeta = (id: string) => {
+        startTransition(async () => {
+            await updateStrategicGoalValue(id, editProgress);
+            setEditingId(null);
+        });
     };
 
-    const handleDeleteMeta = (index: number) => {
+    const handleDeleteMeta = (id: string) => {
         if (window.confirm('¿Estás seguro de que deseas eliminar esta meta?')) {
-            const updatedMetas = metas.filter((_, i) => i !== index);
-            setMetas(updatedMetas);
-            if (editingIndex === index) setEditingIndex(null);
+            startTransition(async () => {
+                await deleteStrategicGoal(id);
+                if (editingId === id) setEditingId(null);
+            });
         }
     };
 
@@ -112,6 +103,9 @@ export default function MetasSection({ themeColor }: MetasSectionProps = {}) {
             padding: '1rem 1.25rem',
             marginBottom: '1rem',
             overflowX: 'auto',
+            opacity: isPending ? 0.7 : 1,
+            pointerEvents: isPending ? 'none' : 'auto',
+            transition: 'opacity 0.2s'
         }}>
             {/* Section label */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
@@ -119,56 +113,33 @@ export default function MetasSection({ themeColor }: MetasSectionProps = {}) {
                 <span style={{ fontSize, fontWeight, letterSpacing, textTransform: 'uppercase', color: titleColor }}>
                     Metas Estratégicas
                 </span>
-                <span style={{
-                    background: 'rgba(255,200,0,0.15)', color: 'rgba(255,200,0,0.8)',
-                    fontSize: '0.55rem', padding: '0.1rem 0.4rem', borderRadius: '10px', border: '1px solid rgba(255,200,0,0.2)',
-                }}>Mock</span>
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem', minWidth: 'max-content' }}>
                 {metas.map((meta, i) => (
-                    <div key={i} style={{
+                    <div key={meta.id} style={{
                         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem',
                         background: 'rgba(255,255,255,0.04)',
-                        border: `1px solid ${editingIndex === i ? accentColor : COLORS[i % COLORS.length] + '30'}`,
+                        border: `1px solid ${editingId === meta.id ? accentColor : COLORS[i % COLORS.length] + '30'}`,
                         borderRadius: '12px',
                         padding: '0.75rem',
-                        minWidth: '120px',
-                        position: 'relative',
-                        transition: 'all 0.2s',
+                        width: '180px',
+                        position: 'relative'
                     }}>
-                        {/* Delete Button */}
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteMeta(i);
-                            }}
-                            style={{
-                                position: 'absolute', top: '5px', right: '5px',
-                                background: 'none', border: 'none', cursor: 'pointer',
-                                color: 'rgba(255,255,255,0.2)', padding: '4px',
-                                transition: 'color 0.2s'
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.color = '#ef4444'}
-                            onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(255,255,255,0.2)'}
-                        >
-                            <Trash2 size={12} />
-                        </button>
-
-                        {editingIndex === i ? (
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', width: '100%' }}>
+                        {editingId === meta.id ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem' }}>
                                 <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#fff' }}>{editProgress}%</div>
                                 <input
                                     type="range"
-                                    min="1"
-                                    max="100"
+                                    min="0"
+                                    max={meta.targetValue}
                                     value={editProgress}
                                     onChange={(e) => setEditProgress(parseInt(e.target.value))}
                                     style={{ width: '80%', cursor: 'pointer', accentColor: accentColor }}
                                 />
                                 <div style={{ display: 'flex', gap: '0.4rem' }}>
                                     <button
-                                        onClick={() => handleUpdateMeta(i)}
+                                        onClick={() => handleUpdateMeta(meta.id)}
                                         style={{
                                             background: accentColor, color: '#fff', border: 'none',
                                             borderRadius: '4px', padding: '2px 8px', fontSize: '0.65rem',
@@ -178,33 +149,44 @@ export default function MetasSection({ themeColor }: MetasSectionProps = {}) {
                                         OK
                                     </button>
                                     <button
-                                        onClick={() => setEditingIndex(null)}
+                                        onClick={() => setEditingId(null)}
                                         style={{
                                             background: 'rgba(255,255,255,0.1)', color: '#fff', border: 'none',
                                             borderRadius: '4px', padding: '2px 8px', fontSize: '0.65rem',
                                             cursor: 'pointer'
                                         }}
                                     >
-                                        Cancelar
+                                        ×
+                                    </button>
+                                    <button
+                                        onClick={() => handleDeleteMeta(meta.id)}
+                                        style={{
+                                            background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none',
+                                            borderRadius: '4px', padding: '2px 8px', fontSize: '0.65rem',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        <Trash2 size={12} />
                                     </button>
                                 </div>
                             </div>
                         ) : (
                             <div
                                 onClick={() => {
-                                    setEditingIndex(i);
-                                    setEditProgress(meta.current);
+                                    setEditingId(meta.id);
+                                    setEditProgress(meta.currentValue);
                                 }}
                                 style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', width: '100%' }}
                                 title="Click para editar progreso"
                             >
-                                <DonutChart current={meta.current} target={meta.target} color={COLORS[i % COLORS.length]} />
+                                <DonutChart current={meta.currentValue} target={meta.targetValue} color={COLORS[i % COLORS.length]} />
                                 <p style={{
                                     fontSize: '0.6rem', color: 'rgba(255,255,255,0.65)',
                                     textAlign: 'center', margin: 0, lineHeight: 1.4,
                                     whiteSpace: 'pre-line',
+                                    fontWeight: 500
                                 }}>
-                                    {meta.label}
+                                    {meta.statement}
                                 </p>
                                 <div style={{
                                     fontSize: '0.55rem', fontWeight: 600, color: accentColor,
@@ -212,9 +194,6 @@ export default function MetasSection({ themeColor }: MetasSectionProps = {}) {
                                 }} className="edit-hint">Editar</div>
                             </div>
                         )}
-                        <style>{`
-                            div:hover .edit-hint { opacity: 0.8 !important; }
-                        `}</style>
                     </div>
                 ))}
 
@@ -245,12 +224,12 @@ export default function MetasSection({ themeColor }: MetasSectionProps = {}) {
                         />
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', color: 'rgba(255,255,255,0.5)' }}>
-                                <span>Progreso</span>
+                                <span>Progreso Inicial</span>
                                 <span>{newProgress}%</span>
                             </div>
                             <input
                                 type="range"
-                                min="1"
+                                min="0"
                                 max="100"
                                 value={newProgress}
                                 onChange={(e) => setNewProgress(parseInt(e.target.value))}
@@ -315,6 +294,9 @@ export default function MetasSection({ themeColor }: MetasSectionProps = {}) {
                     </button>
                 )}
             </div>
+            <style jsx>{`
+                div:hover .edit-hint { opacity: 0.8 !important; }
+            `}</style>
         </div>
     );
 }

@@ -13,9 +13,10 @@ type Props = {
     placeholder?: string;
     'data-testid'?: string;
     required?: boolean;
+    renderValue?: (value: string) => React.ReactNode;
 };
 
-export default function EditableText({ initialValue, onSave, className, multiline, style, placeholder, 'data-testid': testId, required }: Props) {
+export default function EditableText({ initialValue, onSave, className, multiline, style, placeholder, 'data-testid': testId, required, renderValue }: Props) {
     const { locale } = useLanguage();
     const [isEditing, setIsEditing] = useState(false);
     const [value, setValue] = useState(initialValue);
@@ -200,7 +201,7 @@ export default function EditableText({ initialValue, onSave, className, multilin
             title="Click to edit"
             data-testid={testId}
         >
-            {value || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{placeholder || 'Empty...'}</span>}
+            {renderValue ? renderValue(value) : (value || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>{placeholder || 'Empty...'}</span>)}
             {isSaving && <span style={{ marginLeft: '8px', fontSize: '0.8em' }}>💾</span>}
 
             {/* AI Guide Trigger */}
