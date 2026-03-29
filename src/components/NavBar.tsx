@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -15,24 +16,17 @@ export default function NavBar() {
     const { user } = useAuth();
     const pathname = usePathname();
     const [isOpen, setIsOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
 
-    // Close menu on navigation
     useEffect(() => {
+        setMounted(true);
+        // Close menu on navigation
         setIsOpen(false);
     }, [pathname]);
 
     const isActive = (path: string) => {
         if (path === '/strategy') return pathname.startsWith('/strategy');
         return pathname.startsWith(path);
-    };
-
-    const linkStyle = (path: string, colorVar: string) => {
-        const active = isActive(path);
-        return {
-            color: active ? `hsl(var(${colorVar}))` : 'inherit',
-            background: active ? `hsl(var(${colorVar}) / 0.1)` : 'transparent',
-            border: active ? `1px solid hsl(var(${colorVar}) / 0.2)` : '1px solid transparent',
-        };
     };
 
     const allItems = [
@@ -50,32 +44,10 @@ export default function NavBar() {
 
     const toggleMenu = () => setIsOpen(!isOpen);
 
-    return (
-        <div className={styles.navContainer}>
+    const menuContent = (
+        <>
             {/* Backdrop - Closes menu when clicked outside */}
             {isOpen && <div className={styles.backdrop} onClick={() => setIsOpen(false)} data-testid="nav-backdrop" />}
-
-            {/* Logo - Always visible */}
-            <Link href="/" title="Inicio" data-testid="nav-logo-link">
-                <img src="/pragma-logo.png" alt="Logo" style={{ height: '32px', width: 'auto' }} />
-            </Link>
-
-            {/* Default Controls: Lang Switch + Hamburger */}
-            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <NotificationBell />
-                <div className={styles.desktopLangSwitch} data-testid="nav-lang-switch-desktop">
-                    <LanguageSwitcher />
-                </div>
-
-                <button
-                    className={`${styles.mobileMenuBtn} ${isOpen ? styles.openIcon : ''}`}
-                    onClick={toggleMenu}
-                    aria-label="Toggle Menu"
-                    data-testid="nav-menu-toggle"
-                >
-                    <div className={styles.hamburgerIcon} />
-                </button>
-            </div>
 
             {/* Sidebar Menu Overlay */}
             <div className={`${styles.mobileOverlay} ${isOpen ? styles.mobileOverlayOpen : ''}`}>
@@ -138,6 +110,35 @@ export default function NavBar() {
                     </button>
                 </div>
             </div>
+        </>
+    );
+
+    return (
+        <div className={styles.navContainer}>
+            {/* Logo - Always visible */}
+            <Link href="/" title="Inicio" data-testid="nav-logo-link">
+                <img src="/pragma-logo.png" alt="Logo" style={{ height: '32px', width: 'auto' }} />
+            </Link>
+
+            {/* Default Controls: Lang Switch + Hamburger */}
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <NotificationBell />
+                <div className={styles.desktopLangSwitch} data-testid="nav-lang-switch-desktop">
+                    <LanguageSwitcher />
+                </div>
+
+                <button
+                    className={`${styles.mobileMenuBtn} ${isOpen ? styles.openIcon : ''}`}
+                    onClick={toggleMenu}
+                    aria-label="Toggle Menu"
+                    data-testid="nav-menu-toggle"
+                >
+                    <div className={styles.hamburgerIcon} />
+                </button>
+            </div>
+
+            {/* Portal to Body for Backdrop and Sidebar */}
+            {mounted && createPortal(menuContent, document.body)}
         </div>
     );
 }
