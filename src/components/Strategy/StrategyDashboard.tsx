@@ -277,42 +277,42 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                     }}>{dict.strategy.title}</h1>
 
                     {/* Unified Stats Container - Command Center Style */}
-                    <div style={{ marginLeft: '1rem', display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                    <div style={{ marginLeft: '1.5rem', display: 'flex', alignItems: 'center', gap: '2.5rem' }}>
 
                         {/* Global Progress */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                             <div style={{ position: 'relative', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <svg width="48" height="48" viewBox="0 0 40 40">
-                                    <circle cx="20" cy="20" r="17" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="4" />
+                                    <circle cx="20" cy="20" r="17" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4" />
                                     <circle
                                         cx="20" cy="20" r="17" fill="none" stroke={theme.color} strokeWidth="4"
                                         strokeDasharray={`${2 * Math.PI * 17}`}
                                         strokeDashoffset={`${2 * Math.PI * 17 * (1 - stats.progress / 100)}`}
                                         strokeLinecap="round"
                                         transform="rotate(-90 20 20)"
-                                        style={{ transition: 'stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1)', filter: `drop-shadow(0 0 5px ${theme.color})` }}
+                                        style={{ transition: 'stroke-dashoffset 1s cubic-bezier(0.4, 0, 0.2, 1)', filter: `drop-shadow(0 0 8px ${theme.color}60)` }}
                                     />
                                 </svg>
                                 <span style={{ position: 'absolute', fontSize: '0.85rem', fontWeight: 900, color: '#fff' }}>{stats.progress}%</span>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1 }}>
-                                <span style={{ fontSize: '0.6rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1px' }}>CUMPLIMIENTO</span>
-                                <span style={{ fontSize: '1rem', fontWeight: 900, color: '#fff' }}>GLOBAL</span>
+                            <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+                                <span style={{ fontSize: '0.55rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1.5px' }}>CUMPLIMIENTO</span>
+                                <span style={{ fontSize: '0.9rem', fontWeight: 900, color: '#fff', letterSpacing: '0.5px' }}>GLOBAL</span>
                             </div>
                         </div>
 
                         {/* Divider */}
-                        <div style={{ width: '1px', height: '30px', background: 'rgba(255,255,255,0.1)' }}></div>
+                        <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.12)' }}></div>
 
                         {/* Extra Stats */}
-                        <div style={{ display: 'flex', gap: '2rem' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1 }}>
+                        <div style={{ display: 'flex', gap: '2.5rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
+                                <span style={{ fontSize: '0.55rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1.5px' }}>OBJETIVOS</span>
                                 <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#fff' }}>{stats.objectives}</span>
-                                <span style={{ fontSize: '0.6rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1px' }}>OBJETIVOS</span>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1 }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.2 }}>
+                                <span style={{ fontSize: '0.55rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1.5px' }}>KRs</span>
                                 <span style={{ fontSize: '1.1rem', fontWeight: 900, color: '#fff' }}>{stats.krs}</span>
-                                <span style={{ fontSize: '0.6rem', fontWeight: 800, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '1px' }}>KRs</span>
                             </div>
                         </div>
 

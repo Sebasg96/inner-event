@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -15,6 +15,11 @@ export default function NavBar() {
     const { user } = useAuth();
     const pathname = usePathname();
     const [isOpen, setIsOpen] = useState(false);
+
+    // Close menu on navigation
+    useEffect(() => {
+        setIsOpen(false);
+    }, [pathname]);
 
     const isActive = (path: string) => {
         if (path === '/strategy') return pathname.startsWith('/strategy');
@@ -47,6 +52,9 @@ export default function NavBar() {
 
     return (
         <div className={styles.navContainer}>
+            {/* Backdrop - Closes menu when clicked outside */}
+            {isOpen && <div className={styles.backdrop} onClick={() => setIsOpen(false)} data-testid="nav-backdrop" />}
+
             {/* Logo - Always visible */}
             <Link href="/" title="Inicio" data-testid="nav-logo-link">
                 <img src="/pragma-logo.png" alt="Logo" style={{ height: '32px', width: 'auto' }} />
