@@ -2,12 +2,13 @@
 
 import { useState } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import styles from '@/app/strategy/page.module.css'; // Reusing premium styles
+import styles from '@/app/strategy/page.module.css';
 import Link from 'next/link';
+import NavBar from '@/components/NavBar';
 import EditUserModal from './EditUserModal';
 import MyTeamModal from './MyTeamModal';
+import { Pencil } from 'lucide-react';
 
-// Enhanced User Type
 // Define Interfaces
 interface Team {
     id: string;
@@ -27,9 +28,9 @@ interface User {
     discProfile?: {
         color: string;
     } | null;
-    jobRole?: string; // TEAM_LEAD, MEMBER
+    jobRole?: string;
     ledTeams?: Team[];
-    teams?: { team: Team }[]; // Many-to-many relation typically returns array of join objects
+    teams?: { team: Team }[];
 }
 
 export default function UsersClient({ users, createUserAction }: { users: User[], createUserAction: (formData: FormData) => Promise<void> }) {
@@ -41,9 +42,12 @@ export default function UsersClient({ users, createUserAction }: { users: User[]
         <div className={styles.container}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <h1 className={styles.header}>{dict.capacities.users.title}</h1>
-                <Link href="/" className="btn-primary" style={{ textDecoration: 'none', fontSize: '0.9rem', opacity: 0.8 }}>
-                    ← Back
-                </Link>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <Link href="/capacities" className="btn-primary" style={{ textDecoration: 'none', fontSize: '0.9rem', opacity: 0.8 }}>
+                        ← Volver
+                    </Link>
+                    <NavBar />
+                </div>
             </div>
 
             <div className="glass-panel" style={{ padding: '2rem', marginBottom: '2rem' }}>
@@ -74,10 +78,12 @@ export default function UsersClient({ users, createUserAction }: { users: User[]
                             </div>
                             <button
                                 onClick={() => setEditingUser(user)}
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', opacity: 0.5 }}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', opacity: 0.5, color: 'rgba(255,255,255,0.7)', transition: 'opacity 0.2s' }}
                                 title="Editar Usuario"
+                                onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                                onMouseLeave={(e) => e.currentTarget.style.opacity = '0.5'}
                             >
-                                ✏️
+                                <Pencil size={16} />
                             </button>
                         </div>
 
@@ -94,7 +100,7 @@ export default function UsersClient({ users, createUserAction }: { users: User[]
                         <div style={{ marginTop: 'auto', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>
-                                    {user.discProfile ? `${dict.capacities.users.disc}: ${user.discProfile.color}` : 'No DISC'}
+                                    {user.discProfile ? `${dict.capacities.users.disc}: ${user.discProfile.color}` : 'Sin DISC'}
                                 </span>
                                 <Link
                                     href={`/capacities/assessment/${user.id}`}
@@ -123,7 +129,7 @@ export default function UsersClient({ users, createUserAction }: { users: User[]
                                         user,
                                         team: user.teams![0].team
                                     })}
-                                    style={{ fontSize: '0.8rem', width: '100%', marginTop: '0.5rem', background: 'transparent', border: '1px solid var(--border-glass)', borderRadius: '8px', cursor: 'pointer', padding: '0.5rem' }}
+                                    style={{ fontSize: '0.8rem', width: '100%', marginTop: '0.5rem', background: 'transparent', border: '1px solid var(--border-glass)', borderRadius: '8px', cursor: 'pointer', padding: '0.5rem', color: 'rgba(255,255,255,0.7)' }}
                                 >
                                     Ver Mi Equipo
                                 </button>

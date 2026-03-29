@@ -117,7 +117,7 @@ export default function NavBar() {
         <div className={styles.navContainer}>
             {/* Logo - Always visible */}
             <Link href="/" title="Inicio" data-testid="nav-logo-link">
-                <img src="/pragma-logo.png" alt="Logo" style={{ height: '32px', width: 'auto' }} />
+                <img src="/pragma-logo.png" alt="Logo" style={{ height: '50px', width: 'auto' }} />
             </Link>
 
             {/* Default Controls: Lang Switch + Hamburger */}

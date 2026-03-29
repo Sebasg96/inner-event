@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import styles from '@/app/strategy/page.module.css';
-import { suggestTeam } from '@/lib/team/suggestionLogic';
 import Link from 'next/link';
+import NavBar from '@/components/NavBar';
+import { Bot } from 'lucide-react';
 
 type User = {
     id: string;
@@ -42,9 +42,12 @@ export default function TeamsClient({ users, teams = [] }: { users: User[], team
         <div className={styles.container}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <h1 className={styles.header}>{dict.capacities.teams.title}</h1>
-                <Link href="/" className="btn-primary" style={{ textDecoration: 'none', fontSize: '0.9rem', opacity: 0.8 }}>
-                    ← Back
-                </Link>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <Link href="/capacities" className="btn-primary" style={{ textDecoration: 'none', fontSize: '0.9rem', opacity: 0.8 }}>
+                        ← Volver
+                    </Link>
+                    <NavBar />
+                </div>
             </div>
 
             <div className={styles.gridContainer} style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 1fr) 2fr', gap: '2rem' }}>
@@ -71,19 +74,19 @@ export default function TeamsClient({ users, teams = [] }: { users: User[], team
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <h2 className={styles.sectionTitle} style={{ marginBottom: 0 }}>Equipos Propuestos por IA</h2>
-                        <span style={{ fontSize: '0.8rem', padding: '0.25rem 0.75rem', borderRadius: '20px', background: 'var(--primary)', color: 'white' }}>Auto-Generated</span>
+                        <span style={{ fontSize: '0.8rem', padding: '0.25rem 0.75rem', borderRadius: '20px', background: 'var(--primary)', color: 'white' }}>Generado por IA</span>
                     </div>
 
                     {teams.length === 0 ? (
                         <div className="glass-panel" style={{ padding: '2rem', textAlign: 'center', color: 'hsl(var(--text-muted))' }}>
-                            No teams generated yet. Please seed data.
+                            Aún no se han generado equipos. Por favor, agrega datos.
                         </div>
                     ) : (
                         teams.map(team => (
                             <div key={team.id} className="glass-panel" style={{ padding: '1.5rem', borderLeft: '4px solid var(--primary)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                                     <h3 style={{ margin: 0, fontSize: '1.25rem' }}>{team.name}</h3>
-                                    <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>{team.members.length} Members</span>
+                                    <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>{team.members.length} Miembros</span>
                                 </div>
 
                                 {/* AI Reasoning */}
@@ -96,9 +99,10 @@ export default function TeamsClient({ users, teams = [] }: { users: User[], team
                                         fontStyle: 'italic',
                                         border: '1px solid hsl(var(--border-glass))',
                                         display: 'flex',
-                                        gap: '0.5rem'
+                                        gap: '0.5rem',
+                                        alignItems: 'flex-start'
                                     }}>
-                                        <span>🤖</span>
+                                        <Bot size={18} style={{ flexShrink: 0, marginTop: '2px', color: 'var(--primary)' }} />
                                         <span>"{team.aiReasoning}"</span>
                                     </div>
                                 )}
