@@ -68,7 +68,7 @@ export default function NavBar() {
                 </div>
 
                 <button
-                    className={`${styles.mobileMenuBtn} ${styles.alwaysVisible}`}
+                    className={`${styles.mobileMenuBtn} ${isOpen ? styles.openIcon : ''}`}
                     onClick={toggleMenu}
                     aria-label="Toggle Menu"
                     data-testid="nav-menu-toggle"
@@ -78,7 +78,7 @@ export default function NavBar() {
             </div>
 
             {/* Sidebar Menu Overlay */}
-            <div className={`${styles.mobileOverlay} ${isOpen ? styles.open : ''}`}>
+            <div className={`${styles.mobileOverlay} ${isOpen ? styles.mobileOverlayOpen : ''}`}>
                 <button
                     className={styles.closeBtn}
                     onClick={toggleMenu}
