@@ -192,6 +192,11 @@ export default async function PlanningPage() {
         where: { tenantId }
     });
 
+    const strategicGoals = await prisma.strategicGoal.findMany({
+        where: { tenantId },
+        orderBy: { createdAt: 'asc' }
+    });
+
     const tenantUsers = await prisma.user.findMany({
         where: { tenantId },
         select: { id: true, name: true, lastName: true, email: true, role: true, area: true }
@@ -210,6 +215,7 @@ export default async function PlanningPage() {
                     strategicAxes={strategicAxes}
                     tenantUsers={tenantUsers}
                     user={currentUser}
+                    strategicGoals={strategicGoals}
                 />
             </div>
         </div>

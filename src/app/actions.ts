@@ -272,6 +272,7 @@ export async function createMega(formData: FormData) {
     await prisma.mega.create({
         data: { statement, deadline, purposeId, tenantId },
     });
+    revalidatePath('/strategy/planning');
     revalidatePath('/strategy');
 }
 
@@ -751,21 +752,26 @@ export async function deleteObjective(id: string) {
 }
 
 export async function createStrategicGoal(statement: string, targetValue: number, currentValue: number) {
-    const currentUser = await getCurrentUser();
-    if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
-    const tenantId = currentUser.tenantId;
+    try {
+        const currentUser = await getCurrentUser();
+        if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
+        const tenantId = currentUser.tenantId;
 
-    const goal = await prisma.strategicGoal.create({
-        data: {
-            statement,
-            targetValue,
-            currentValue,
-            tenantId
-        }
-    });
-    revalidatePath('/strategy/planning');
-    revalidatePath('/dashboard');
-    return { success: true, id: goal.id };
+        const goal = await prisma.strategicGoal.create({
+            data: {
+                statement,
+                targetValue,
+                currentValue,
+                tenantId
+            }
+        });
+        revalidatePath('/strategy/planning');
+        revalidatePath('/dashboard');
+        return { success: true, id: goal.id };
+    } catch (error: any) {
+        console.error('Error creating strategic goal:', error);
+        return { error: error.message || 'Failed to create strategic goal' };
+    }
 }
 
 export async function updateStrategicGoalValue(id: string, currentValue: number) {

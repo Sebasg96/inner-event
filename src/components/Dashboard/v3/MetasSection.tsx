@@ -72,7 +72,11 @@ export default function MetasSection({ themeColor, metas = [] }: MetasSectionPro
     const handleAddMeta = () => {
         if (!newLabel.trim()) return;
         startTransition(async () => {
-            await createStrategicGoal(newLabel, 100, newProgress);
+            const result = await createStrategicGoal(newLabel, 100, newProgress);
+            if (result && 'error' in result) {
+                alert(`Error: ${result.error}`);
+                return;
+            }
             setNewLabel('');
             setNewProgress(50);
             setIsAdding(false);

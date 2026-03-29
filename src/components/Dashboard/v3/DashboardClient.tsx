@@ -16,7 +16,7 @@ export default function DashboardClient({ data: initialData }: DashboardClientPr
     const [cutoffDate, setCutoffDate] = useState<string | null>(null);
     const [isPending, startTransition] = useTransition();
 
-    const { mega, axes, objectivesWithoutAxis } = data;
+    const { mega, axes, objectivesWithoutAxis, strategicGoals } = data;
 
     const handleDateChange = (date: string | null) => {
         setCutoffDate(date);
@@ -91,8 +91,8 @@ export default function DashboardClient({ data: initialData }: DashboardClientPr
                 </div>
 
 
-                {/* Strategic Goals (Metas) - Mock */}
-                <MetasSection />
+                {/* Strategic Goals (Metas) */}
+                <MetasSection metas={strategicGoals} />
 
                 {/* Strategic Grid */}
                 <StrategicGrid axes={axes} objectivesWithoutAxis={objectivesWithoutAxis} />
