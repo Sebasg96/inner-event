@@ -19,6 +19,9 @@ export default async function RitualDetailPage({ params }: { params: { id: strin
         include: {
             participants: {
                 include: { user: true }
+            },
+            commitments: {
+                include: { owner: true }
             }
         }
     });
@@ -26,6 +29,12 @@ export default async function RitualDetailPage({ params }: { params: { id: strin
     if (!ritual) {
         return <div>Ritual not found</div>;
     }
+
+    // Fetch all users for the tenant
+    const users = await prisma.user.findMany({
+        where: { tenantId },
+        select: { id: true, name: true, email: true }
+    });
 
     // Fetch OKR Summary for Context
     const objectives = await prisma.objective.findMany({
@@ -55,5 +64,5 @@ export default async function RitualDetailPage({ params }: { params: { id: strin
         avgProgress: `${avgProgress}%`
     };
 
-    return <RitualDetailClient ritual={ritual} okrSummary={okrSummary} />;
+    return <RitualDetailClient ritual={ritual as any} okrSummary={okrSummary} users={users} />;
 }
