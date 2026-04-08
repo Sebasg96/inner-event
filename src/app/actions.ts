@@ -111,7 +111,6 @@ export async function signUpUser(formData: FormData) {
                 name: name,
                 tenantId: tenant.id,
                 role: 'COLLABORATOR',
-                password: password // Guardamos por compatibilidad con el sistema legacy
             },
             include: { tenant: true }
         });
@@ -1268,7 +1267,6 @@ export async function inviteUser(formData: FormData) {
                         jobRole,
                         area,
                         tenantId: currentUser.tenantId,
-                        password: 'PENDING_SETUP'
                     }
                 });
             }
