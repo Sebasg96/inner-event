@@ -63,7 +63,6 @@ model User {
   email    String  @unique
   name     String // First Name
   lastName String? // Last Name
-  password String  @default("12345") // Default password as requested
 
   age            Int?
   gender         String?
