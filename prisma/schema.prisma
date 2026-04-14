@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,92 +9,417 @@ datasource db {
 }
 
 model Document {
-  id        String                      @id @default(uuid())
+  id        String                 @id @default(uuid())
   content   String
   metadata  Json?
-  embedding Unsupported("vector(768)")? // Gemini embeddings are 768 dim
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  embedding Unsupported("vector")?
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+  tenantId  String
+  tenant    Tenant                 @relation(fields: [tenantId], references: [id])
 
   @@map("documents")
 }
 
 model Tenant {
-  id        String   @id @default(uuid())
-  name      String
-  domain    String   @unique // e.g. "compensar.com"
-  logo      String? // URL or path
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  users         User[]
-  teams         Team[]
-  purposes      Purpose[]
-  megas         Mega[]
-  objectives    Objective[]
-  keyResults    KeyResult[]
-  initiatives   Initiative[]
-  kanbanTasks   KanbanTask[]
-  rituals       Ritual[]
-  values        OrganizationalValue[]
-  strategicAxes StrategicAxis[]
-  strategicGoals StrategicGoal[]
-
-  // Emergent Strategy
-  hardChoices             HardChoice[]
-  strategicConversations  StrategicConversation[]
-  distinctiveCapabilities DistinctiveCapability[]
-  marketValueMetrics      MarketValueMetric[]
-  mutationLogs            MutationLog[]
-  Document                Document[]
-  strategicAccess         StrategicAccess[]
+  id                      String                  @id @default(dbgenerated("gen_random_uuid()"))
+  name                    String
+  domain                  String                  @unique
+  logo                    String?
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
   analyticsSnapshots      AnalyticsSnapshot[]
+  distinctiveCapabilities DistinctiveCapability[]
+  EmergentInsight         EmergentInsight[]
+  hardChoices             HardChoice[]
+  initiatives             Initiative[]
+  kanbanTasks             KanbanTask[]
+  keyResults              KeyResult[]
+  marketValueMetrics      MarketValueMetric[]
+  megas                   Mega[]
+  mutationLogs            MutationLog[]
+  objectives              Objective[]
+  values                  OrganizationalValue[]
+  purposes                Purpose[]
+  rituals                 Ritual[]
+  strategicAccess         StrategicAccess[]
+  strategicAxes           StrategicAxis[]
+  strategicConversations  StrategicConversation[]
+  strategicGoals          StrategicGoal[]
+  teams                   Team[]
+  users                   User[]
+  Document                Document[]
 }
 
 model User {
-  id       String  @id @default(uuid())
-  email    String  @unique
-  name     String // First Name
-  lastName String? // Last Name
-
-  age            Int?
-  gender         String?
-  jobTitle       String? // "Cargo"
-  area           String? // "Area"
-  tenure         String? // "Tiempo en la compania"
-  hierarchyLevel Int?    @default(3) // 1=Company, 2=Area, 3=Team
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-
-  role    UserRole @default(COLLABORATOR)
-  jobRole JobRole? // TEAM_LEAD, MEMBER, SUPERVISOR
-
-  discProfile DiscProfile?
-  teams       TeamMember[]
-  ledTeams    Team[]       @relation("TeamLeader")
-
-  kanbanTasks KanbanTask[]
-
-  // Owner relations
-  ownedPurposes    Purpose[] // New: Users can own purposes (Areas)
-  ownedObjectives  Objective[]
-  ownedKeyResults  KeyResult[]
-  ownedInitiatives Initiative[]
-
-  ritualParticipations RitualParticipant[]
-  ritualCommitments    RitualCommitment[]
-  ritualActionLogs     RitualActionLog[]
+  id                   String              @id @default(uuid())
+  email                String              @unique
+  name                 String
+  lastName             String?
+  age                  Int?
+  gender               String?
+  jobTitle             String?
+  area                 String?
+  tenure               String?
+  hierarchyLevel       Int?                @default(3)
+  tenantId             String
+  role                 UserRole            @default(COLLABORATOR)
+  jobRole              JobRole?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  discProfile          DiscProfile?
+  ownedInitiatives     Initiative[]
+  kanbanTasks          KanbanTask[]
+  ownedKeyResults      KeyResult[]
   keyResultUpdates     KeyResultUpdate[]
+  ownedObjectives      Objective[]
+  ownedPurposes        Purpose[]
+  ritualActionLogs     RitualActionLog[]
+  ritualCommitments    RitualCommitment[]
+  ritualParticipations RitualParticipant[]
+  strategicAccess      StrategicAccess[]
+  ledTeams             Team[]              @relation("TeamLeader")
+  teams                TeamMember[]
+  tenant               Tenant              @relation(fields: [tenantId], references: [id])
+}
 
+model DiscProfile {
+  id        String    @id @default(uuid())
+  userId    String    @unique
+  color     DiscColor
+  scores    String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id])
+}
+
+model Team {
+  id          String       @id @default(uuid())
+  name        String
+  tenantId    String
+  aiReasoning String?
+  leaderId    String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  initiatives Initiative[]
+  leader      User?        @relation("TeamLeader", fields: [leaderId], references: [id])
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  members     TeamMember[]
+}
+
+model TeamMember {
+  id     String  @id @default(uuid())
+  teamId String
+  userId String
+  role   String?
+  team   Team    @relation(fields: [teamId], references: [id])
+  user   User    @relation(fields: [userId], references: [id])
+
+  @@unique([teamId, userId])
+}
+
+model Purpose {
+  id              String            @id @default(uuid())
+  statement       String
+  type            PurposeType       @default(COMPANY)
+  ownerId         String?
+  tenantId        String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  area            String?
+  megas           Mega[]
+  owner           User?             @relation(fields: [ownerId], references: [id])
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
   strategicAccess StrategicAccess[]
+}
 
+model Mega {
+  id         String      @id @default(uuid())
+  statement  String
+  deadline   DateTime
+  purposeId  String
+  tenantId   String
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  purpose    Purpose     @relation(fields: [purposeId], references: [id])
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+  objectives Objective[]
+}
+
+model Objective {
+  id                String            @id @default(uuid())
+  statement         String
+  description       String?
+  megaId            String?
+  parentObjectiveId String?
+  ownerId           String?
+  tenantId          String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  area              String?
+  weight            Float             @default(1.0)
+  strategicAxisId   String?
+  keyResults        KeyResult[]
+  mega              Mega?             @relation(fields: [megaId], references: [id])
+  owner             User?             @relation(fields: [ownerId], references: [id])
+  parentObjective   Objective?        @relation("RecursiveObjectives", fields: [parentObjectiveId], references: [id])
+  childObjectives   Objective[]       @relation("RecursiveObjectives")
+  strategicAxis     StrategicAxis?    @relation(fields: [strategicAxisId], references: [id])
+  tenant            Tenant            @relation(fields: [tenantId], references: [id])
+  strategicAccess   StrategicAccess[]
+}
+
+model KeyResult {
+  id                   String               @id @default(uuid())
+  statement            String
+  description          String?
+  targetValue          Float
+  currentValue         Float                @default(0)
+  metricUnit           String
+  objectiveId          String
+  ownerId              String?
+  tenantId             String
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  numeratorValue       Float                @default(0)
+  denominatorValue     Float                @default(1)
+  numeratorLabel       String               @default("Actual")
+  denominatorLabel     String               @default("Meta")
+  trackingType         TrackingType         @default(PERCENTAGE)
+  updatePeriodicity    UpdatePeriodicity?
+  weight               Float                @default(1.0)
+  startYear            Int?
+  startQuarter         Int?
+  endYear              Int?
+  endQuarter           Int?
+  measurementDirection MeasurementDirection @default(MAXIMIZE)
+  initiatives          Initiative[]
+  objective            Objective            @relation(fields: [objectiveId], references: [id])
+  owner                User?                @relation(fields: [ownerId], references: [id])
+  tenant               Tenant               @relation(fields: [tenantId], references: [id])
+  updates              KeyResultUpdate[]
+}
+
+model KeyResultUpdate {
+  id          String    @id @default(uuid())
+  keyResultId String
+  oldValue    Float
+  newValue    Float
+  userId      String?
+  createdAt   DateTime  @default(now())
+  comment     String?
+  obstacles   String?
+  keyResult   KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
+  user        User?     @relation(fields: [userId], references: [id])
+}
+
+model Initiative {
+  id              String            @id @default(uuid())
+  title           String
+  description     String?
+  horizon         Horizon
+  status          KanbanStatus      @default(TODO)
+  progress        Float             @default(0)
+  keyResultId     String
+  ownerId         String?
+  teamId          String?
+  aiExplanation   String?
+  tenantId        String
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  keyResult       KeyResult         @relation(fields: [keyResultId], references: [id])
+  owner           User?             @relation(fields: [ownerId], references: [id])
+  team            Team?             @relation(fields: [teamId], references: [id])
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  tasks           KanbanTask[]
+  strategicAccess StrategicAccess[]
+}
+
+model KanbanTask {
+  id           String       @id @default(uuid())
+  title        String
+  description  String?
+  status       KanbanStatus @default(TODO)
+  initiativeId String
+  assigneeId   String?
+  tenantId     String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  assignee     User?        @relation(fields: [assigneeId], references: [id])
+  initiative   Initiative   @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+}
+
+model Ritual {
+  id               String              @id @default(uuid())
+  name             String
+  date             DateTime
+  description      String?
+  discussionPoints String?
+  aiSuggestions    String?
+  tenantId         String
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  status           RitualStatus        @default(SCHEDULED)
+  tenant           Tenant              @relation(fields: [tenantId], references: [id])
+  actionLogs       RitualActionLog[]
+  commitments      RitualCommitment[]
+  participants     RitualParticipant[]
+}
+
+model RitualParticipant {
+  id       String @id @default(uuid())
+  ritualId String
+  userId   String
+  ritual   Ritual @relation(fields: [ritualId], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [userId], references: [id])
+
+  @@unique([ritualId, userId])
+}
+
+model RitualCommitment {
+  id          String           @id @default(uuid())
+  description String
+  status      CommitmentStatus @default(PENDING)
+  dueDate     DateTime?
+  ritualId    String
+  ownerId     String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  owner       User?            @relation(fields: [ownerId], references: [id])
+  ritual      Ritual           @relation(fields: [ritualId], references: [id], onDelete: Cascade)
+}
+
+model RitualActionLog {
+  id        String   @id @default(uuid())
+  action    String
+  details   String?
+  createdAt DateTime @default(now())
+  ritualId  String
+  userId    String
+  ritual    Ritual   @relation(fields: [ritualId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model HardChoice {
+  id          String   @id @default(uuid())
+  description String
+  reasoning   String
+  date        DateTime @default(now())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+model StrategicConversation {
+  id           String   @id @default(uuid())
+  topic        String
+  conclusion   String?
+  participants String?
+  date         DateTime @default(now())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+model DistinctiveCapability {
+  id       String  @id @default(uuid())
+  name     String
+  status   String
+  evidence String?
+  tenantId String
+  tenant   Tenant  @relation(fields: [tenantId], references: [id])
+}
+
+model MarketValueMetric {
+  id             String   @id @default(uuid())
+  metricName     String
+  value          Float
+  marketFeedback String?
+  date           DateTime @default(now())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+model MutationLog {
+  id          String   @id @default(uuid())
+  observation String
+  type        String
+  ignore      Boolean  @default(false)
+  date        DateTime @default(now())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+model OrganizationalValue {
+  id        String   @id @default(uuid())
+  statement String
+  tenantId  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+model StrategicAxis {
+  id         String      @id @default(uuid())
+  statement  String
+  tenantId   String
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  objectives Objective[]
+  tenant     Tenant      @relation(fields: [tenantId], references: [id])
+}
+
+model StrategicGoal {
+  id           String   @id @default(uuid())
+  statement    String
+  targetValue  Float
+  currentValue Float    @default(0)
+  tenantId     String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+}
+
+model StrategicAccess {
+  id           String      @id @default(uuid())
+  userId       String
+  purposeId    String?
+  objectiveId  String?
+  initiativeId String?
+  tenantId     String
+  createdAt    DateTime    @default(now())
+  initiative   Initiative? @relation(fields: [initiativeId], references: [id])
+  objective    Objective?  @relation(fields: [objectiveId], references: [id])
+  purpose      Purpose?    @relation(fields: [purposeId], references: [id])
+  tenant       Tenant      @relation(fields: [tenantId], references: [id])
+  user         User        @relation(fields: [userId], references: [id])
+
+  @@unique([userId, purposeId])
+  @@unique([userId, objectiveId])
+  @@unique([userId, initiativeId])
+}
+
+model AnalyticsSnapshot {
+  id        String   @id @default(uuid())
+  type      String
+  data      String
+  tenantId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, type])
+}
+
+model EmergentInsight {
+  id        String   @id
+  tenantId  String
+  tabId     String
+  insight   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+  Tenant    Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, tabId])
 }
 
 enum UserRole {
@@ -113,74 +435,11 @@ enum JobRole {
   SUPERVISOR
 }
 
-model DiscProfile {
-  id     String    @id @default(uuid())
-  userId String    @unique
-  user   User      @relation(fields: [userId], references: [id])
-  color  DiscColor
-  scores String // JSON string for detailed scores if needed
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
 enum DiscColor {
   RED
   YELLOW
   GREEN
   BLUE
-}
-
-model Team {
-  id       String @id @default(uuid())
-  name     String
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-
-  members     TeamMember[]
-  initiatives Initiative[]
-
-  aiReasoning String? // New: "Conclusion de la IA"
-
-  leaderId String?
-  leader   User?   @relation("TeamLeader", fields: [leaderId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model TeamMember {
-  id     String  @id @default(uuid())
-  teamId String
-  team   Team    @relation(fields: [teamId], references: [id])
-  userId String
-  user   User    @relation(fields: [userId], references: [id])
-  role   String?
-
-  @@unique([teamId, userId])
-}
-
-// 1. Jerarquía Estratégica
-
-model Purpose {
-  id        String      @id @default(uuid())
-  statement String // "Para Qué"
-  type      PurposeType @default(COMPANY) // New
-
-  area String? // New: Filter by area for shared views
-
-  ownerId String? // New
-  owner   User?   @relation(fields: [ownerId], references: [id])
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-
-  megas Mega[]
-
-  strategicAccess StrategicAccess[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 enum PurposeType {
@@ -189,179 +448,19 @@ enum PurposeType {
   TEAM
 }
 
-model Mega {
-  id        String   @id @default(uuid())
-  statement String // "Gran Destino"
-  deadline  DateTime
-  purposeId String
-  purpose   Purpose  @relation(fields: [purposeId], references: [id])
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
-
-  objectives Objective[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Objective {
-  id          String  @id @default(uuid())
-  statement   String
-  description String? // New
-
-  megaId String? // Optional now? "El Objetivo a la MEGA o a otro objetivo"
-  mega   Mega?   @relation(fields: [megaId], references: [id])
-
-  parentObjectiveId String? // New: Recursive
-  parentObjective   Objective?  @relation("RecursiveObjectives", fields: [parentObjectiveId], references: [id])
-  childObjectives   Objective[] @relation("RecursiveObjectives")
-
-  area String? // New: Filter by area for shared views
-
-  ownerId String? // New
-  owner   User?   @relation(fields: [ownerId], references: [id])
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-
-  keyResults KeyResult[]
-
-  strategicAxisId String?
-  strategicAxis   StrategicAxis? @relation(fields: [strategicAxisId], references: [id])
-
-  strategicAccess StrategicAccess[]
-
-  weight Float @default(1.0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model KeyResult {
-  id           String  @id @default(uuid())
-  statement    String
-  description  String? // New
-  targetValue  Float
-  currentValue Float   @default(0)
-  metricUnit   String // e.g., "%", "USD", "Users"
-
-  // Calculation Assistant
-  numeratorValue   Float  @default(0)
-  denominatorValue Float  @default(1)
-  numeratorLabel   String @default("Actual")
-  denominatorLabel String @default("Meta")
-
-  trackingType TrackingType @default(PERCENTAGE)
-
-  objectiveId String
-  objective   Objective @relation(fields: [objectiveId], references: [id])
-
-  ownerId String? // New
-  owner   User?   @relation(fields: [ownerId], references: [id])
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-
-  initiatives Initiative[]
-  updates     KeyResultUpdate[]
-
-  updatePeriodicity UpdatePeriodicity?
-  weight            Float              @default(1.0)
-
-  // Periodicity
-  startYear    Int?
-  startQuarter Int?
-  endYear      Int?
-  endQuarter   Int?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
 enum UpdatePeriodicity {
-  DAILY
   WEEKLY
   BIWEEKLY
   MONTHLY
   QUARTERLY
   YEARLY
-}
-
-model KeyResultUpdate {
-  id          String    @id @default(uuid())
-  keyResultId String
-  keyResult   KeyResult @relation(fields: [keyResultId], references: [id], onDelete: Cascade)
-
-  oldValue    Float
-  newValue    Float
-  comment     String?
-  obstacles   String?
-
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id])
-
-  createdAt DateTime @default(now())
-}
-
-// 3. Gestión de Iniciativas (Proyectos) & 2. Categorización (3 Horizontes)
-
-model Initiative {
-  id          String  @id @default(uuid())
-  title       String
-  description String?
-
-  horizon Horizon
-  status  KanbanStatus @default(TODO) // Keep for high level status
-
-  progress Float @default(0) // 0 to 100 (Derived from Tasks)
-
-  keyResultId String
-  keyResult   KeyResult @relation(fields: [keyResultId], references: [id])
-
-  ownerId String? // New
-  owner   User?   @relation(fields: [ownerId], references: [id])
-
-  // "La iniciativa clave permite traer los equipos armados"
-  teamId String?
-  team   Team?   @relation(fields: [teamId], references: [id])
-
-  aiExplanation String? // New: "IA dira el porque lo clasifica"
-
-  tasks KanbanTask[] // New: "asociado a un tablero canvan"
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-
-  strategicAccess StrategicAccess[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model KanbanTask {
-  id          String  @id @default(uuid())
-  title       String
-  description String?
-
-  status KanbanStatus @default(TODO) // "3 estados Sin iniciar, en curso y cerrado"
-
-  initiativeId String
-  initiative   Initiative @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
-
-  assigneeId String?
-  assignee   User?   @relation(fields: [assigneeId], references: [id])
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  DAILY
 }
 
 enum Horizon {
-  H1 // Core
-  H2 // Emerging
-  H3 // Future
+  H1
+  H2
+  H3
 }
 
 enum KanbanStatus {
@@ -370,72 +469,10 @@ enum KanbanStatus {
   DONE
 }
 
-// 4. Rituales de Seguimiento (Rituals)
-
-model Ritual {
-  id          String   @id @default(uuid())
-  name        String // "Ritual 1", "Ritual 2", etc.
-  date        DateTime
-  description String? // Optional context
-
-  discussionPoints String? // "Puntos tratados"
-  aiSuggestions    String? // "Sugerencias de la IA"
-  status           RitualStatus @default(SCHEDULED)
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-
-  participants RitualParticipant[]
-  commitments  RitualCommitment[]
-  actionLogs   RitualActionLog[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
 enum RitualStatus {
   SCHEDULED
   IN_PROGRESS
   COMPLETED
-}
-
-model RitualParticipant {
-  id       String @id @default(uuid())
-  ritualId String
-  ritual   Ritual @relation(fields: [ritualId], references: [id], onDelete: Cascade)
-  userId   String
-  user     User   @relation(fields: [userId], references: [id])
-
-  @@unique([ritualId, userId])
-}
-
-model RitualCommitment {
-  id          String   @id @default(uuid())
-  description String
-  status      CommitmentStatus @default(PENDING)
-  dueDate     DateTime?
-
-  ritualId    String
-  ritual      Ritual   @relation(fields: [ritualId], references: [id], onDelete: Cascade)
-
-  ownerId     String?
-  owner       User?    @relation(fields: [ownerId], references: [id])
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
-
-model RitualActionLog {
-  id        String   @id @default(uuid())
-  action    String   // e.g., "STATUS_CHANGED", "PARTICIPANT_ADDED"
-  details   String?  // Additional context
-  createdAt DateTime @default(now())
-
-  ritualId  String
-  ritual    Ritual   @relation(fields: [ritualId], references: [id], onDelete: Cascade)
-
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum CommitmentStatus {
@@ -443,133 +480,14 @@ enum CommitmentStatus {
   COMPLETED
 }
 
-// 5. Estrategia Emergente (Salazar's Framework)
-
-model HardChoice {
-  id          String   @id @default(uuid())
-  description String // "Oportunidad rechazada"
-  reasoning   String // "¿Por qué se rechazó?"
-  date        DateTime @default(now())
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-}
-
-model StrategicConversation {
-  id           String   @id @default(uuid())
-  topic        String // "Tema de conversación"
-  conclusion   String?
-  participants String? // JSON string or text list
-  date         DateTime @default(now())
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-}
-
-model DistinctiveCapability {
-  id       String  @id @default(uuid())
-  name     String // "Nombre de la capacidad"
-  status   String // "Developing", "Mature", "Core"
-  evidence String? // "Pruebas de que existe"
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-}
-
-model MarketValueMetric {
-  id             String   @id @default(uuid())
-  metricName     String // "Indicador de Valor Creado"
-  value          Float
-  marketFeedback String? // "Feedback del mercado"
-  date           DateTime @default(now())
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-}
-
-model MutationLog {
-  id          String   @id @default(uuid())
-  observation String // "Resultado inesperado"
-  type        String // "POSITIVE", "NEGATIVE"
-  ignore      Boolean  @default(false)
-  date        DateTime @default(now())
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-}
-
-model OrganizationalValue {
-  id        String @id @default(uuid())
-  statement String
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model StrategicAxis {
-  id        String @id @default(uuid())
-  statement String
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  objectives Objective[]
-}
-
 enum TrackingType {
   PERCENTAGE
   UNITS
 }
 
-model StrategicGoal {
-  id           String   @id @default(uuid())
-  statement    String
-  targetValue  Float
-  currentValue Float    @default(0)
-
-  tenantId     String
-  tenant       Tenant   @relation(fields: [tenantId], references: [id])
-
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-}
-
-model StrategicAccess {
-  id     String @id @default(uuid())
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-
-  purposeId    String?
-  purpose      Purpose?    @relation(fields: [purposeId], references: [id])
-  objectiveId  String?
-  objective    Objective?  @relation(fields: [objectiveId], references: [id])
-  initiativeId String?
-  initiative   Initiative? @relation(fields: [initiativeId], references: [id])
-
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-
-  createdAt DateTime @default(now())
-
-  @@unique([userId, purposeId])
-  @@unique([userId, objectiveId])
-  @@unique([userId, initiativeId])
-}
-
-model AnalyticsSnapshot {
-  id        String   @id @default(uuid())
-  type      String   // "narrative" | "insights"
-  data      String   // JSON stringified LLM response
-  tenantId  String
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([tenantId, type])
+enum MeasurementDirection {
+  MAXIMIZE
+  MINIMIZE
+  TARGET
+  COMPLETE
 }

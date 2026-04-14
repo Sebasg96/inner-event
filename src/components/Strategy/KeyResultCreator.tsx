@@ -1,24 +1,27 @@
-'use client';
-
 import React, { useState } from 'react';
 import { createKeyResult } from '@/app/actions';
 import styles from '@/app/strategy/page.module.css';
+import { MeasurementDirection } from '@prisma/client';
+import { DIRECTION_CONFIG, MEASUREMENT_UNITS } from '@/lib/krUtils';
+import { Info } from 'lucide-react';
 
 export default function KeyResultCreator({ objectiveId, megaDeadline }: { objectiveId: string, megaDeadline?: Date | string }) {
     const [isOpen, setIsOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-    const [trackingType, setTrackingType] = useState<'PERCENTAGE' | 'UNITS'>('PERCENTAGE');
+    const [measurementDirection, setMeasurementDirection] = useState<MeasurementDirection>(MeasurementDirection.MAXIMIZE);
     const [metricUnit, setMetricUnit] = useState('%');
+    const [targetValue, setTargetValue] = useState<string>('100');
 
     if (!isOpen) {
         return (
-            <div style={{ background: 'white', border: '1px dashed #cbd5e1', borderRadius: '8px', padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ background: 'rgba(255, 255, 255, 0.05)', border: '1px dashed rgba(255, 255, 255, 0.2)', borderRadius: '12px', padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(10px)' }}>
                 <button
                     onClick={() => setIsOpen(true)}
+                    data-testid="kr-creator-toggle"
                     style={{
                         background: 'none',
                         border: 'none',
-                        color: '#64748b',
+                        color: 'rgba(255, 255, 255, 0.6)',
                         cursor: 'pointer',
                         fontSize: '0.9rem',
                         fontWeight: 600,
@@ -37,41 +40,42 @@ export default function KeyResultCreator({ objectiveId, megaDeadline }: { object
         );
     }
 
-    const handleTrackingChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const value = e.target.value as 'PERCENTAGE' | 'UNITS';
-        setTrackingType(value);
-        if (value === 'PERCENTAGE') {
-            setMetricUnit('%');
-        } else if (metricUnit === '%') {
-            setMetricUnit(''); // Clear to encourage specific unit
+    const handleDirectionChange = (dir: MeasurementDirection) => {
+        setMeasurementDirection(dir);
+        if (dir === MeasurementDirection.COMPLETE) {
+            setTargetValue('100');
+            setMetricUnit('Práctica/Hito');
         }
     };
 
+    const handleUnitChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const val = e.target.value;
+        if (val === 'custom') {
+            setMetricUnit('');
+        } else {
+            setMetricUnit(val);
+        }
+    };
 
-    // Calculate year range based on Mega Deadline or default
+    // Calculate year range
     const currentYear = new Date().getFullYear();
     let minYear = currentYear;
     let maxYear = currentYear + 5;
-
     if (megaDeadline) {
         const deadlineYear = new Date(megaDeadline).getFullYear();
         maxYear = deadlineYear;
-        // Check if deadline is in the past relative to current year, extend range backwards if needed
-        if (maxYear < minYear) {
-            minYear = maxYear;
-        }
+        if (maxYear < minYear) minYear = maxYear;
     }
-
     const years = Array.from({ length: maxYear - minYear + 1 }, (_, i) => minYear + i);
 
     return (
-        <div style={{ background: 'white', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }}>
+        <div className="glass-panel" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '16px', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)', backdropFilter: 'blur(20px)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#334155' }}>Nuevo Resultado Clave</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>Nuevo Resultado Clave</span>
                 <button
                     onClick={() => setIsOpen(false)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: '1.2rem', lineHeight: 1 }}
-                    title="Cerrar"
+                    data-testid="kr-creator-close"
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', fontSize: '1.2rem', lineHeight: 1 }}
                 >
                     &times;
                 </button>
@@ -79,191 +83,182 @@ export default function KeyResultCreator({ objectiveId, megaDeadline }: { object
 
             <form
                 action={async (formData) => {
-                    // Validation: Check dates against Mega Deadline & Start Date
-                    if (megaDeadline) {
-                        const startYear = parseInt(formData.get('startYear') as string);
-                        const startQuarter = parseInt(formData.get('startQuarter') as string);
-                        const endYear = parseInt(formData.get('endYear') as string);
-                        const endQuarter = parseInt(formData.get('endQuarter') as string);
-
-                        // 1. Validate End Date vs Start Date
-                        if (startYear && startQuarter && endYear && endQuarter) {
-                            if (endYear < startYear || (endYear === startYear && endQuarter < startQuarter)) {
-                                alert(`La fecha fin (${endYear} Q${endQuarter}) no puede ser anterior a la fecha inicio (${startYear} Q${startQuarter}).`);
-                                return;
-                            }
-                        }
-
-                        // 2. Validate End Date vs Mega Deadline
-                        if (endYear && endQuarter) {
-                            const deadlineDate = new Date(megaDeadline);
-                            const deadlineYear = deadlineDate.getFullYear();
-                            const deadlineMonth = deadlineDate.getUTCMonth(); // 0-11
-                            const deadlineQuarter = Math.floor(deadlineMonth / 3) + 1;
-
-                            if (endYear > deadlineYear || (endYear === deadlineYear && endQuarter > deadlineQuarter)) {
-                                alert(`La fecha fin del KR (${endYear} Q${endQuarter}) no puede ser posterior a la fecha límite de la Mega (${deadlineYear} Q${deadlineQuarter}).`);
-                                return;
-                            }
-                        }
-                    }
-
                     setIsSaving(true);
                     try {
                         await createKeyResult(formData);
                         setIsOpen(false);
-                        // Dispatch event to update NotificationBell
                         window.dispatchEvent(new Event('kr-updated'));
                     } catch (error) {
                         console.error('Error creating KR:', error);
-                        alert('Error al crear el KR. Por favor, intenta de nuevo.');
+                        alert('Error al crear el KR.');
                     } finally {
                         setIsSaving(false);
                     }
                 }}
-                style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '1rem' }}
+                data-testid="kr-creator-form"
+                style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
             >
                 <input type="hidden" name="objectiveId" value={objectiveId} />
+                <input type="hidden" name="measurementDirection" value={measurementDirection} />
+                <input type="hidden" name="trackingType" value={metricUnit === '%' ? 'PERCENTAGE' : 'UNITS'} />
+
+                {/* Direccionalidad Selector */}
+                <div
+                    data-testid="kr-creator-direction-section"
+                    style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}
+                >
+                    <label
+                        data-testid="kr-creator-direction-label"
+                        style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.5px' }}
+                    >
+                        Dirección de la Medición
+                    </label>
+                    <div
+                        data-testid="kr-creator-direction-grid"
+                        style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}
+                    >
+                        {(Object.keys(DIRECTION_CONFIG) as MeasurementDirection[]).map((dir) => (
+                            <button
+                                key={dir}
+                                type="button"
+                                data-testid={`kr-creator-direction-btn-${dir.toLowerCase()}`}
+                                title={DIRECTION_CONFIG[dir].description}
+                                onClick={() => handleDirectionChange(dir)}
+                                style={{
+                                    padding: '0.6rem',
+                                    borderRadius: '10px',
+                                    border: '1px solid',
+                                    borderColor: measurementDirection === dir ? '#3b82f6' : 'rgba(255,255,255,0.1)',
+                                    background: measurementDirection === dir ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.03)',
+                                    color: measurementDirection === dir ? '#60a5fa' : 'rgba(255,255,255,0.6)',
+                                    fontSize: '0.75rem',
+                                    fontWeight: measurementDirection === dir ? 700 : 500,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    transition: 'all 0.2s',
+                                    position: 'relative'
+                                }}
+                            >
+                                <span style={{ fontSize: '1rem' }}>{DIRECTION_CONFIG[dir].emoji}</span>
+                                <div style={{ textAlign: 'left', lineHeight: 1.1, flex: 1 }}>
+                                    <div>{DIRECTION_CONFIG[dir].label}</div>
+                                </div>
+                                <div
+                                    data-testid={`kr-creator-direction-help-${dir.toLowerCase()}`}
+                                    style={{ opacity: 0.5, display: 'flex', alignItems: 'center' }}
+                                >
+                                    <Info size={14} />
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                    <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>Descripción del KR</label>
                     <input
                         name="statement"
-                        placeholder="Descripción del KR (Ej: Incrementar satisfacción del cliente)"
+                        placeholder="Ej: Incrementar la cuota de mercado en el sector retail"
                         required
-                        className={styles.visiblePlaceholder}
-                        style={{ border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.6rem', fontSize: '0.9rem', outline: 'none', color: 'black', width: '100%' }}
+                        data-testid="kr-creator-statement"
+                        style={{ border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', padding: '0.75rem', fontSize: '0.9rem', outline: 'none', color: 'white', background: 'rgba(0,0,0,0.2)', width: '100%' }}
                     />
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                    <div style={{ flex: '1 1 30%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>TIPO</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    {/* Unidad y Categoría */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>Unidad de Medida</label>
                         <select
-                            name="trackingType"
-                            value={trackingType}
-                            onChange={handleTrackingChange}
-                            style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.6rem', fontSize: '0.9rem', color: 'black', background: 'white', outline: 'none' }}
+                            data-testid="kr-creator-unit-select"
+                            onChange={handleUnitChange}
+                            value={MEASUREMENT_UNITS.flatMap(c => c.units).find(u => u.symbol === metricUnit) ? metricUnit : 'custom'}
+                            style={{ width: '100%', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '0.6rem', fontSize: '0.9rem', color: 'white', background: 'rgba(0,0,0,0.3)', outline: 'none' }}
                         >
-                            <option value="PERCENTAGE">Porcentaje (%)</option>
-                            <option value="UNITS">Unidades</option>
+                            {MEASUREMENT_UNITS.map(cat => (
+                                <optgroup key={cat.category} label={`${cat.emoji} ${cat.category}`} style={{ background: '#1e293b' }}>
+                                    {cat.units.map(u => (
+                                        <option key={u.symbol} value={u.symbol}>{u.label} ({u.symbol})</option>
+                                    ))}
+                                </optgroup>
+                            ))}
+                            <option value="custom" style={{ background: '#1e293b' }}>✨ Otro (Personalizado)</option>
                         </select>
-                    </div>
-                    <div style={{ flex: '1 1 30%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>META</label>
-                        <input
-                            name="targetValue"
-                            type="number"
-                            placeholder="Ej: 100"
-                            required
-                            className={styles.visiblePlaceholder}
-                            style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.6rem', fontSize: '0.9rem', color: 'black' }}
-                        />
-                    </div>
-                    <div style={{ flex: '1 1 30%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>UNIDAD</label>
                         <input
                             name="metricUnit"
+                            data-testid="kr-creator-unit-input"
                             value={metricUnit}
                             onChange={(e) => setMetricUnit(e.target.value)}
-                            placeholder={trackingType === 'PERCENTAGE' ? '%' : 'Ej: Clientes'}
+                            placeholder="Ej: Ventas, Usuarios, etc."
                             required
-                            readOnly={trackingType === 'PERCENTAGE'}
-                            className={styles.visiblePlaceholder}
-                            style={{
-                                width: '100%',
-                                border: '1px solid #e2e8f0',
-                                borderRadius: '6px',
-                                padding: '0.6rem',
-                                fontSize: '0.9rem',
-                                color: 'black',
-                                background: trackingType === 'PERCENTAGE' ? '#f8fafc' : 'white'
-                            }}
+                            style={{ border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', padding: '0.6rem', fontSize: '0.85rem', color: 'white', background: 'rgba(0,0,0,0.2)', marginTop: '0.25rem' }}
                         />
                     </div>
-                    <div style={{ flex: '1 1 30%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>FRECUENCIA DE ACTUALIZACIÓN</label>
+
+                    {/* Meta */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>Meta a Alcanzar</label>
+                        <input
+                            name="targetValue"
+                            data-testid="kr-creator-target-input"
+                            type="number"
+                            step="any"
+                            value={targetValue}
+                            onChange={(e) => setTargetValue(e.target.value)}
+                            disabled={measurementDirection === MeasurementDirection.COMPLETE}
+                            required
+                            style={{ border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', padding: '0.6rem', fontSize: '0.9rem', color: 'white', background: measurementDirection === MeasurementDirection.COMPLETE ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.2)', width: '100%' }}
+                        />
+                        {measurementDirection === MeasurementDirection.COMPLETE && <span style={{ fontSize: '0.6rem', color: '#64748b' }}>Fijo en 100 para tipo Completar</span>}
+                    </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>Frecuencia</label>
                         <select
                             name="updatePeriodicity"
-                            style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.6rem', fontSize: '0.9rem', color: 'black', background: 'white', outline: 'none' }}
+                            data-testid="kr-creator-periodicity-select"
+                            style={{ width: '100%', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '0.6rem', fontSize: '0.85rem', color: 'white', background: 'rgba(0,0,0,0.3)', outline: 'none' }}
                         >
-                            <option value="">(Opcional)</option>
-                            <option value="DAILY">Diaria</option>
-                            <option value="WEEKLY">Semanal</option>
-                            <option value="BIWEEKLY">Quincenal</option>
-                            <option value="MONTHLY">Mensual</option>
-                            <option value="QUARTERLY">Trimestral</option>
-                            <option value="YEARLY">Anual</option>
+                            <option value="WEEKLY" style={{ background: '#1e293b' }}>Semanal</option>
+                            <option value="BIWEEKLY" style={{ background: '#1e293b' }}>Quincenal</option>
+                            <option value="MONTHLY" style={{ background: '#1e293b' }}>Mensual</option>
+                            <option value="QUARTERLY" style={{ background: '#1e293b' }}>Trimestral</option>
                         </select>
                     </div>
-                </div>
 
-                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
-                    <div style={{ flex: '1 1 22%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>AÑO INICIO</label>
-                        <select
-                            name="startYear"
-                            style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.6rem', fontSize: '0.9rem', color: 'black', background: 'white', outline: 'none' }}
-                        >
-                            <option value="">(Opcional)</option>
-                            {years.map(y => (
-                                <option key={y} value={y}>{y}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div style={{ flex: '1 1 22%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>Q INICIO</label>
-                        <select
-                            name="startQuarter"
-                            style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.6rem', fontSize: '0.9rem', color: 'black', background: 'white', outline: 'none' }}
-                        >
-                            <option value="">(Opcional)</option>
-                            {[1, 2, 3, 4].map(q => <option key={q} value={q}>Q{q}</option>)}
-                        </select>
-                    </div>
-                    <div style={{ flex: '1 1 22%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>AÑO FIN</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase' }}>Meta Finalización (Año)</label>
                         <select
                             name="endYear"
-                            style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.6rem', fontSize: '0.9rem', color: 'black', background: 'white', outline: 'none' }}
+                            data-testid="kr-creator-year-select"
+                            style={{ width: '100%', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', padding: '0.6rem', fontSize: '0.85rem', color: 'white', background: 'rgba(0,0,0,0.3)', outline: 'none' }}
                         >
-                            <option value="">(Opcional)</option>
                             {years.map(y => (
-                                <option key={y} value={y}>{y}</option>
+                                <option key={y} value={y} style={{ background: '#1e293b' }}>{y}</option>
                             ))}
-                        </select>
-                    </div>
-                    <div style={{ flex: '1 1 22%', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <label style={{ fontSize: '0.7rem', fontWeight: 700, color: '#64748b' }}>Q FIN</label>
-                        <select
-                            name="endQuarter"
-                            style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '0.6rem', fontSize: '0.9rem', color: 'black', background: 'white', outline: 'none' }}
-                        >
-                            <option value="">(Opcional)</option>
-                            {[1, 2, 3, 4].map(q => <option key={q} value={q}>Q{q}</option>)}
                         </select>
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '1rem' }}>
                     <button
                         type="button"
                         onClick={() => setIsOpen(false)}
-                        style={{ background: 'white', border: '1px solid #cbd5e1', color: '#64748b', borderRadius: '6px', padding: '0.5rem 1rem', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 500 }}
+                        style={{ background: 'transparent', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.7)', borderRadius: '8px', padding: '0.5rem 1.25rem', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 600 }}
                     >
                         Cancelar
                     </button>
                     <button
                         type="submit"
+                        data-testid="kr-creator-submit-btn"
                         disabled={isSaving}
-                        style={{ background: isSaving ? '#94a3b8' : '#334155', color: 'white', border: 'none', borderRadius: '6px', padding: '0.5rem 1.5rem', fontSize: '0.85rem', cursor: isSaving ? 'not-allowed' : 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                        style={{ background: isSaving ? 'rgba(255,255,255,0.2)' : 'white', color: isSaving ? 'rgba(255,255,255,0.4)' : '#0f172a', border: 'none', borderRadius: '8px', padding: '0.5rem 1.75rem', fontSize: '0.85rem', cursor: isSaving ? 'not-allowed' : 'pointer', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                     >
-                        {isSaving && (
-                            <svg width="12" height="12" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style={{ animation: 'spin 1s linear infinite' }}>
-                                <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
-                                <path d="M12,1A11,11,0,1,0,23,12,11,11,0,0,0,12,1Zm0,19a8,8,0,1,1,8-8A8,8,0,0,1,12,20Z" opacity=".25" fill="white" />
-                                <path d="M12,4a8,8,0,0,1,7.89,6.7A1.5,1.5,0,0,0,21.38,12h0a1.5,1.5,0,0,0,1.48-1.75,11,11,0,0,0-21.72,0A1.5,1.5,0,0,0,2.62,12h0a1.5,1.5,0,0,0,1.48-1.75A8,8,0,0,1,12,4Z" fill="white" />
-                            </svg>
-                        )}
-                        {isSaving ? 'Guardando...' : 'Guardar KR'}
+                        {isSaving ? 'Guardando...' : 'Crear KR'}
                     </button>
                 </div>
             </form>

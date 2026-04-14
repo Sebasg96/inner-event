@@ -2,12 +2,15 @@
 
 import { prisma } from '@/lib/prisma';
 import { cookies } from 'next/headers';
+import { calculateKRProgress } from '@/lib/krUtils';
+import { MeasurementDirection } from '@prisma/client';
 
 export interface KRData {
   id: string;
   statement: string;
   progress: number; // 0-100
   trackingType: string;
+  measurementDirection: MeasurementDirection;
   currentValue: number;
   targetValue: number;
   metricUnit: string;
@@ -54,18 +57,13 @@ export interface TreeNodeData {
 
 function calcKRProgress(kr: {
   trackingType: string;
+  measurementDirection: MeasurementDirection;
   currentValue: number;
   targetValue: number;
   updates: { newValue: number }[];
 }): number {
   const latestValue = kr.updates.length > 0 ? kr.updates[0].newValue : kr.currentValue;
-  if (kr.trackingType === 'PERCENTAGE') {
-    return Math.min(100, Math.max(0, latestValue));
-  }
-  if (kr.targetValue > 0) {
-    return Math.min(100, Math.max(0, (latestValue / kr.targetValue) * 100));
-  }
-  return 0;
+  return calculateKRProgress(kr.measurementDirection, latestValue, kr.targetValue);
 }
 
 export async function getDashboardData(cutoffDate?: string): Promise<DashboardData> {
@@ -133,8 +131,9 @@ export async function getDashboardData(cutoffDate?: string): Promise<DashboardDa
     const krNodes: KRData[] = obj.keyResults.map((kr) => ({
       id: kr.id,
       statement: kr.statement,
-      progress: calcKRProgress(kr),
+      progress: calcKRProgress(kr as any),
       trackingType: kr.trackingType,
+      measurementDirection: kr.measurementDirection,
       currentValue: kr.currentValue,
       targetValue: kr.targetValue,
       metricUnit: kr.metricUnit,
@@ -184,11 +183,11 @@ export async function getDashboardData(cutoffDate?: string): Promise<DashboardDa
   return {
     mega: mega
       ? {
-          id: mega.id,
-          statement: mega.statement,
-          deadline: mega.deadline.toISOString(),
-          overallProgress,
-        }
+        id: mega.id,
+        statement: mega.statement,
+        deadline: mega.deadline.toISOString(),
+        overallProgress,
+      }
       : null,
     axes: axesData,
     objectivesWithoutAxis: mappedNoAxis,

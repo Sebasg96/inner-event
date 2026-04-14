@@ -92,11 +92,9 @@
 
 .node {
     width: 240px;
-    background: white;
-    /* 25% Pure White */
-    color: #001a33 !important;
-    /* Force Dark Navy explicitly */
-    border: 1px solid var(--border-glass);
+    background: rgba(255, 255, 255, 0.05); /* Glass feel */
+    color: #ffffff !important; /* Always white on dark module */
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 8px;
     padding: 0.75rem;
     box-shadow: var(--shadow-sm);
@@ -104,7 +102,6 @@
     position: relative;
     z-index: 10;
     border-left: 4px solid var(--primary);
-    /* Default strict blue */
 }
 
 .node:hover {

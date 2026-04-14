@@ -79,6 +79,7 @@ export default async function PlanningPage() {
                                     denominatorValue: true,
                                     numeratorLabel: true,
                                     denominatorLabel: true,
+                                    measurementDirection: true,
                                     updatePeriodicity: true,
 
                                     owner: true,
@@ -114,6 +115,7 @@ export default async function PlanningPage() {
                                             denominatorValue: true,
                                             numeratorLabel: true,
                                             denominatorLabel: true,
+                                            measurementDirection: true,
                                             updatePeriodicity: true,
 
                                             owner: true,
@@ -147,6 +149,7 @@ export default async function PlanningPage() {
                                                     denominatorValue: true,
                                                     numeratorLabel: true,
                                                     denominatorLabel: true,
+                                                    measurementDirection: true,
                                                     updatePeriodicity: true,
 
                                                     owner: true,
