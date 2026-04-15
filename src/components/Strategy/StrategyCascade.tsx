@@ -57,6 +57,7 @@ export default function StrategyCascade({ purpose }: Props) {
                 <div
                     className={`${styles.node} ${styles['level' + level]}`}
                     onClick={handleToggle}
+                    data-testid="strategy-cascade-node"
                     style={{ cursor: hasChildren ? 'pointer' : 'default' }}
                 >
                     <div className={styles.header}>
@@ -67,6 +68,7 @@ export default function StrategyCascade({ purpose }: Props) {
                         {hasChildren && (
                             <button
                                 className={styles.toggleBtn}
+                                data-testid="strategy-cascade-toggle"
                                 title={isExpanded ? "Collapse" : "Expand"}
                             >
                                 {isExpanded ? '−' : '+'}
@@ -91,6 +93,7 @@ export default function StrategyCascade({ purpose }: Props) {
                                 <div
                                     key={kr.id}
                                     className={styles.krDot}
+                                    data-testid="strategy-cascade-kr-dot"
                                     title={`KR: ${kr.statement} (Gestionar Iniciativas)`}
                                     onClick={(e) => {
                                         e.stopPropagation();

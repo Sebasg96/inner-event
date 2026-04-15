@@ -23,5 +23,27 @@ export default async function EmergentPage() {
         orderBy: { date: 'desc' }
     });
 
-    return <EmergentClient hardChoices={hardChoices} strategicConversations={strategicConversations} />;
+    const distinctiveCapabilities = await prisma.distinctiveCapability.findMany({
+        where: { tenantId },
+    });
+
+    const marketValueMetrics = await prisma.marketValueMetric.findMany({
+        where: { tenantId },
+        orderBy: { date: 'desc' }
+    });
+
+    const mutationLogs = await prisma.mutationLog.findMany({
+        where: { tenantId },
+        orderBy: { date: 'desc' }
+    });
+
+    return (
+        <EmergentClient
+            hardChoices={hardChoices}
+            strategicConversations={strategicConversations}
+            distinctiveCapabilities={distinctiveCapabilities}
+            marketValueMetrics={marketValueMetrics}
+            mutationLogs={mutationLogs}
+        />
+    );
 }

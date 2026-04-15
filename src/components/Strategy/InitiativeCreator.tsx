@@ -37,6 +37,7 @@ export default function InitiativeCreator({ keyResultId, krs, onSuccess }: Props
         return (
             <button
                 onClick={() => setIsOpen(true)}
+                data-testid="initiative-creator-toggle"
                 style={{
                     width: '100%',
                     padding: '0.75rem',
@@ -106,7 +107,7 @@ export default function InitiativeCreator({ keyResultId, krs, onSuccess }: Props
                 </button>
             </div>
 
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <form onSubmit={handleSubmit} data-testid="initiative-creator-form" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {keyResultId ? (
                     <input type="hidden" name="keyResultId" value={keyResultId} />
                 ) : (
@@ -115,6 +116,7 @@ export default function InitiativeCreator({ keyResultId, krs, onSuccess }: Props
                         <select
                             name="keyResultId"
                             required
+                            data-testid="initiative-creator-kr-select"
                             style={{
                                 padding: '0.75rem',
                                 borderRadius: '8px',
@@ -139,6 +141,7 @@ export default function InitiativeCreator({ keyResultId, krs, onSuccess }: Props
                         name="title"
                         placeholder="Ej: Lanzar campaña de referidos..."
                         required
+                        data-testid="initiative-creator-title"
                         style={{
                             padding: '0.75rem',
                             borderRadius: '8px',
@@ -155,6 +158,7 @@ export default function InitiativeCreator({ keyResultId, krs, onSuccess }: Props
                     <select
                         name="horizon"
                         required
+                        data-testid="initiative-creator-horizon"
                         style={{
                             padding: '0.75rem',
                             borderRadius: '8px',
@@ -175,6 +179,7 @@ export default function InitiativeCreator({ keyResultId, krs, onSuccess }: Props
                     <label style={{ fontSize: '0.7rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>Responsable (Opcional)</label>
                     <select
                         name="ownerId"
+                        data-testid="initiative-creator-owner"
                         style={{
                             padding: '0.75rem',
                             borderRadius: '8px',
@@ -198,6 +203,7 @@ export default function InitiativeCreator({ keyResultId, krs, onSuccess }: Props
                     <button
                         type="button"
                         onClick={() => setIsOpen(false)}
+                        data-testid="initiative-creator-cancel"
                         style={{
                             flex: 1,
                             padding: '0.75rem',
@@ -214,6 +220,7 @@ export default function InitiativeCreator({ keyResultId, krs, onSuccess }: Props
                     <button
                         type="submit"
                         disabled={isSaving}
+                        data-testid="initiative-creator-submit"
                         style={{
                             flex: 2,
                             padding: '0.75rem',

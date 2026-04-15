@@ -115,8 +115,8 @@ export async function signUpUser(formData: FormData) {
             include: { tenant: true }
         });
 
-        return { 
-            success: true, 
+        return {
+            success: true,
             message: "User created successfully. Please check your email if confirmation is required.",
             user: {
                 id: newUser.id,
@@ -164,7 +164,7 @@ async function getCurrentUser() {
         const cookieStore = await cookies();
         const userId = cookieStore.get('inner_event_user_id')?.value;
         if (!userId) throw new Error('Unauthorized');
-        
+
         const dbUser = await prisma.user.findUnique({
             where: { id: userId },
             select: { id: true, tenantId: true, area: true, role: true }
@@ -188,7 +188,7 @@ async function logRitualAction(ritualId: string, action: string, details?: strin
     try {
         const user = await getCurrentUser();
         if (!user) return;
-        
+
         await prisma.ritualActionLog.create({
             data: {
                 ritualId,
@@ -284,9 +284,9 @@ export async function createObjective(formData: FormData) {
     const strategicAxisId = formData.get('strategicAxisId') as string | null;
 
     await prisma.objective.create({
-        data: { 
-            statement, 
-            megaId, 
+        data: {
+            statement,
+            megaId,
             tenantId,
             strategicAxisId: strategicAxisId === "none" ? null : strategicAxisId
         },
@@ -299,11 +299,11 @@ export async function createKeyResult(formData: FormData) {
     const currentUser = await getCurrentUser();
     if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized: Requires DIRECTOR role or higher');
     const tenantId = currentUser.tenantId;
-    
+
     // Get current user to assign as owner
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    
+
     let ownerId: string | undefined;
     if (user) {
         const dbUser = await prisma.user.findUnique({
@@ -328,11 +328,11 @@ export async function createKeyResult(formData: FormData) {
     const endQuarter = formData.get('endQuarter') ? parseInt(formData.get('endQuarter') as string) : null;
 
     await prisma.keyResult.create({
-        data: { 
-            statement, 
-            targetValue, 
-            metricUnit, 
-            objectiveId, 
+        data: {
+            statement,
+            targetValue,
+            metricUnit,
+            objectiveId,
             tenantId,
             trackingType: trackingType || 'PERCENTAGE',
             updatePeriodicity: updatePeriodicity || null,
@@ -392,9 +392,9 @@ export async function deleteKeyResult(id: string) {
 }
 
 export async function updateKeyResultValue(
-    id: string, 
-    newValue: number, 
-    numeratorValue?: number, 
+    id: string,
+    newValue: number,
+    numeratorValue?: number,
     denominatorValue?: number,
     numeratorLabel?: string,
     denominatorLabel?: string,
@@ -409,13 +409,13 @@ export async function updateKeyResultValue(
 ) {
     try {
         const tenantId = await getTenantId();
-        
+
         // Get current values for history
         const kr = await prisma.keyResult.findUnique({
             where: { id },
             select: { currentValue: true }
         });
-        
+
         if (!kr) throw new Error('Key Result not found');
 
         const supabase = await createClient();
@@ -430,7 +430,7 @@ export async function updateKeyResultValue(
             // Update the KR with calculated fulfillment and raw inputs
             await tx.keyResult.update({
                 where: { id },
-                data: { 
+                data: {
                     currentValue: newValue,
                     numeratorValue: numeratorValue ?? undefined,
                     denominatorValue: denominatorValue ?? undefined,
@@ -471,11 +471,11 @@ export async function createInitiative(formData: FormData) {
     const ownerId = formData.get('ownerId') as string | null;
 
     const initiative = await prisma.initiative.create({
-        data: { 
-            title, 
-            keyResultId, 
-            horizon, 
-            tenantId, 
+        data: {
+            title,
+            keyResultId,
+            horizon,
+            tenantId,
             status: 'TODO',
             ownerId: ownerId || null
         },
@@ -498,12 +498,12 @@ export async function createKanbanTask(formData: FormData) {
 
 export async function updateInitiative(id: string, formData: FormData) {
     const title = formData.get('title') as string;
-    
+
     await prisma.initiative.update({
         where: { id },
         data: { title }
     });
-    
+
     revalidatePath(`/strategy/initiative/${id}`);
 }
 
@@ -865,7 +865,7 @@ export async function createRitualCommitment(formData: FormData) {
     const ownerId = formData.get('ownerId') as string | null;
     const dateStr = formData.get('dueDate') as string;
     const dueDate = dateStr ? new Date(dateStr) : null;
-    
+
     const tenantId = await getTenantId();
     const ritual = await prisma.ritual.findUnique({ where: { id: ritualId, tenantId } });
     if (!ritual) throw new Error("Ritual not found or unauthorized");
@@ -1024,7 +1024,7 @@ export async function importOffTrackKRsToRitual(ritualId: string) {
             const progress = kr.targetValue > 0 ? Math.round((kr.currentValue / kr.targetValue) * 100) : 0;
             const isStale = kr.updatedAt < fifteenDaysAgo;
             const reason = isStale ? '⚠️ Sin actualización en 15+ días' : '🛑 Progreso bajo (< 40%)';
-            
+
             return `  - **KR: ${kr.statement}**\n    - Progreso: ${progress}% (${kr.currentValue}/${kr.targetValue} ${kr.metricUnit})\n    - Alerta: ${reason}\n    - Responsable: 👤 ${kr.owner?.name || 'Sin asignar'}`;
         }).join('\n');
 
@@ -1034,7 +1034,7 @@ export async function importOffTrackKRsToRitual(ritualId: string) {
     const header = `### ⚡ ESTRATEGIA EN RIESGO: TEMAS SUGERIDOS\n\n`;
     const newPoints = header + sections;
 
-    const updatedPoints = ritual.discussionPoints 
+    const updatedPoints = ritual.discussionPoints
         ? `${ritual.discussionPoints}\n\n---\n${newPoints}`
         : newPoints;
 
@@ -1101,7 +1101,7 @@ export async function createOrganizationalValue(formData: FormData) {
 // Get all users from the current tenant for owner selection
 export async function getTenantUsers() {
     const tenantId = await getTenantId();
-    
+
     const users = await prisma.user.findMany({
         where: { tenantId },
         select: {
@@ -1115,7 +1115,7 @@ export async function getTenantUsers() {
         },
         orderBy: { name: 'asc' }
     });
-    
+
     return users;
 }
 
@@ -1162,7 +1162,7 @@ export async function deleteStrategicAxis(id: string) {
 
 export async function updateUserRole(userId: string, newRole: 'ADMIN' | 'DIRECTOR' | 'COLLABORATOR') {
     const currentUser = await getCurrentUser();
-    
+
     // Security check: Only ADMINs can change roles
     if (!canManageUsers(currentUser.role)) {
         throw new Error('Unauthorized: Only admins can update user roles');
@@ -1319,9 +1319,9 @@ export async function revokeStrategicAccess(accessId: string) {
 // Get strategic access for a specific entity
 export async function getStrategicAccess(entityType: 'purpose' | 'objective' | 'initiative', entityId: string) {
     const tenantId = await getTenantId();
-    
+
     const where: any = { tenantId };
-    
+
     if (entityType === 'purpose') {
         where.purposeId = entityId;
     } else if (entityType === 'objective') {
@@ -1447,12 +1447,12 @@ export async function getUserNotifications() {
                 type: 'OVERDUE'
             };
         }
-        
+
         return null;
     }).filter(n => n !== null);
 
     // --- RITUAL NOTIFICATIONS ---
-    
+
     // Fetch upcoming rituals (next 48 hours where user is participant)
     const upcomingRituals = await prisma.ritual.findMany({
         where: {
@@ -1515,7 +1515,7 @@ export async function updateKeyResultMetadata(
 ) {
     const currentUser = await getCurrentUser();
     if (!canEditStrategy(currentUser.role)) throw new Error('Unauthorized');
-    
+
     await prisma.keyResult.update({
         where: { id },
         data
@@ -1555,7 +1555,7 @@ export async function updateKeyResultWeight(keyResultId: string, weight: number)
 
 export async function updateWeightsBatch(updates: { type: 'OBJECTIVE' | 'KR', id: string, weight: number }[]) {
     const tenantId = await getTenantId();
-    
+
     try {
         await prisma.$transaction(async (tx) => {
             for (const update of updates) {
@@ -1572,7 +1572,7 @@ export async function updateWeightsBatch(updates: { type: 'OBJECTIVE' | 'KR', id
                 }
             }
         });
-        
+
         revalidatePath('/strategy');
         revalidatePath('/strategy/planning');
         return { success: true };
@@ -1661,7 +1661,7 @@ export async function getDashboardMetrics(startDate?: Date | string, endDate?: D
     const getTrafficLight = (real: number, expected: number): DashboardTrafficLight => {
         if (expected === 0) return 'GRAY'; // Too early to tell
         const ratio = real / expected;
-        
+
         if (ratio >= 0.9) return 'GREEN';
         if (ratio >= 0.7) return 'YELLOW';
         return 'RED';
@@ -1673,7 +1673,7 @@ export async function getDashboardMetrics(startDate?: Date | string, endDate?: D
         // KR Start
         const krStartYear = kr.startYear ?? new Date().getFullYear();
         const krStartQuarter = kr.startQuarter ?? 1;
-         // Approximate start date of quarter: (Q-1)*3 months
+        // Approximate start date of quarter: (Q-1)*3 months
         const krStartDate = new Date(krStartYear, (krStartQuarter - 1) * 3, 1);
 
         // KR End
@@ -1745,7 +1745,7 @@ export async function getDashboardMetrics(startDate?: Date | string, endDate?: D
                 const metric = processObjective(child);
                 if (metric) {
                     objMetrics.push(metric);
-                    const w = child.weight || 1; 
+                    const w = child.weight || 1;
                     totalObjWeight += w;
                     weightedObjProgress += metric.progress * w;
                     weightedObjExpected += metric.expectedProgress * w;
@@ -1765,7 +1765,7 @@ export async function getDashboardMetrics(startDate?: Date | string, endDate?: D
         const totalWeight = totalKRWeight + totalObjWeight;
         const totalProgress = (weightedKRProgress + weightedObjProgress) / (totalWeight || 1);
         const totalExpected = (weightedKRExpected + weightedObjExpected) / (totalWeight || 1);
-        
+
         return {
             id: obj.id,
             title: obj.statement,
@@ -1790,7 +1790,7 @@ export async function getDashboardMetrics(startDate?: Date | string, endDate?: D
         // Megas only have Objectives (Top Level)
         for (const obj of mega.objectives) {
             // Check if top level obj has parent (should be null based on query)
-            if (obj.parentObjectiveId) continue; 
+            if (obj.parentObjectiveId) continue;
 
             const metric = processObjective(obj);
             if (metric) {
@@ -1804,7 +1804,7 @@ export async function getDashboardMetrics(startDate?: Date | string, endDate?: D
 
         // If Mega has no active objectives in range, skip or show 0?
         // Show 0 but mark as inactive? Let's just calculate what we have.
-        
+
         const finalProgress = totalWeight > 0 ? weightedProgress / totalWeight : 0;
         const finalExpected = totalWeight > 0 ? weightedExpected / totalWeight : 0;
 
@@ -1825,7 +1825,7 @@ export async function getDashboardMetrics(startDate?: Date | string, endDate?: D
     // Global Score
     // Average of Megas (Assumption: Megas range from Equal importance)
     const globalScore = megaMetrics.length > 0 ? totalMegaScore / megaMetrics.length : 0;
-    
+
     // Global Traffic Light needs an aggregate Expected.
     const totalGlobalExpected = megaMetrics.reduce((acc, curr) => acc + curr.expectedProgress, 0);
     const avgGlobalExpected = megaMetrics.length > 0 ? totalGlobalExpected / megaMetrics.length : 0;
@@ -1921,3 +1921,66 @@ export async function getStrategyHealthData() {
         }
     };
 }
+
+// --- Emergent Strategy: Distinctive Capabilities ---
+
+export async function createDistinctiveCapability(formData: FormData) {
+    const tenantId = await getTenantId();
+    const name = formData.get('name') as string;
+    const status = formData.get('status') as string;
+    const evidence = formData.get('evidence') as string;
+
+    await prisma.distinctiveCapability.create({
+        data: { name, status, evidence, tenantId }
+    });
+    revalidatePath('/emergent');
+}
+
+export async function deleteDistinctiveCapability(id: string) {
+    await prisma.distinctiveCapability.delete({
+        where: { id }
+    });
+    revalidatePath('/emergent');
+}
+
+// --- Emergent Strategy: Market Value Metrics ---
+
+export async function createMarketValueMetric(formData: FormData) {
+    const tenantId = await getTenantId();
+    const metricName = formData.get('metricName') as string;
+    const value = parseFloat(formData.get('value') as string);
+    const marketFeedback = formData.get('marketFeedback') as string;
+
+    await prisma.marketValueMetric.create({
+        data: { metricName, value, marketFeedback, tenantId }
+    });
+    revalidatePath('/emergent');
+}
+
+export async function deleteMarketValueMetric(id: string) {
+    await prisma.marketValueMetric.delete({
+        where: { id }
+    });
+    revalidatePath('/emergent');
+}
+
+// --- Emergent Strategy: Mutation Logs ---
+
+export async function createMutationLog(formData: FormData) {
+    const tenantId = await getTenantId();
+    const observation = formData.get('observation') as string;
+    const type = formData.get('type') as string;
+
+    await prisma.mutationLog.create({
+        data: { observation, type, tenantId }
+    });
+    revalidatePath('/emergent');
+}
+
+export async function deleteMutationLog(id: string) {
+    await prisma.mutationLog.delete({
+        where: { id }
+    });
+    revalidatePath('/emergent');
+}
+

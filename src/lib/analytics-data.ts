@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/prisma';
+import { calculateKRProgress } from '@/lib/krUtils';
+import { MeasurementDirection } from '@prisma/client';
 
 /**
  * Analytics Data Aggregation — all queries scoped by tenantId.
@@ -110,6 +112,7 @@ export async function getAnalyticsData(tenantId: string): Promise<AnalyticsData>
                         currentValue: true,
                         targetValue: true,
                         trackingType: true,
+                        measurementDirection: true,
                         updatePeriodicity: true,
                         initiatives: { select: { id: true } },
                         updates: {
@@ -126,6 +129,7 @@ export async function getAnalyticsData(tenantId: string): Promise<AnalyticsData>
                 currentValue: true,
                 targetValue: true,
                 trackingType: true,
+                measurementDirection: true,
             },
         }),
         prisma.initiative.findMany({
@@ -162,8 +166,7 @@ export async function getAnalyticsData(tenantId: string): Promise<AnalyticsData>
 
     // ─── KR Progress Computation ───
     const krProgressList = keyResults.map((kr) => {
-        if (kr.targetValue === 0) return 0;
-        return Math.min(100, (kr.currentValue / kr.targetValue) * 100);
+        return calculateKRProgress(kr.measurementDirection as MeasurementDirection, kr.currentValue, kr.targetValue);
     });
 
     const avgKRProgress =
@@ -250,17 +253,15 @@ export async function getAnalyticsData(tenantId: string): Promise<AnalyticsData>
     const avgInitiativeProgress =
         initiatives.length > 0
             ? Math.round(
-                  initiatives.reduce((a, i) => a + i.progress, 0) / initiatives.length
-              )
+                initiatives.reduce((a, i) => a + i.progress, 0) / initiatives.length
+            )
             : 0;
 
     // ─── Build sanitized summaries (NO IDs, NO emails, NO personal names) ───
 
     const objectiveSummaries: ObjectiveSummary[] = objectives.map((obj) => {
         const krProgresses = obj.keyResults.map((kr) =>
-            kr.targetValue > 0
-                ? Math.min(100, (kr.currentValue / kr.targetValue) * 100)
-                : 0
+            calculateKRProgress(kr.measurementDirection as MeasurementDirection, kr.currentValue, kr.targetValue)
         );
         const avg =
             krProgresses.length > 0
@@ -282,16 +283,13 @@ export async function getAnalyticsData(tenantId: string): Promise<AnalyticsData>
 
     const krSummaries: KRSummary[] = objectives.flatMap((obj) =>
         obj.keyResults.map((kr) => {
-            const progress =
-                kr.targetValue > 0
-                    ? Math.round(Math.min(100, (kr.currentValue / kr.targetValue) * 100))
-                    : 0;
+            const progress = calculateKRProgress(kr.measurementDirection as MeasurementDirection, kr.currentValue, kr.targetValue);
 
             const lastUpdate = kr.updates.length > 0 ? kr.updates[0].createdAt : null;
             const daysSinceLastUpdate = lastUpdate
                 ? Math.round(
-                      (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24)
-                  )
+                    (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60 * 24)
+                )
                 : null;
 
             let status: 'on_track' | 'at_risk' | 'behind' = 'on_track';

@@ -17,6 +17,8 @@ import KRCheckInModal from './KRCheckInModal';
 import WeightManagement from './WeightManagement';
 import StrategyHealthReport from './StrategyHealthReport';
 import MetasSection from '@/components/Dashboard/v3/MetasSection';
+import { MeasurementDirection } from '@prisma/client';
+import { calculateKRProgress } from '@/lib/krUtils';
 
 // Define flexible interfaces for the nested strategy data
 interface Initiative {
@@ -38,6 +40,7 @@ interface KeyResult {
     numeratorLabel?: string;
     denominatorLabel?: string;
     trackingType: 'PERCENTAGE' | 'UNITS';
+    measurementDirection: MeasurementDirection;
     updates?: any[];
     weight: number;
     updatePeriodicity?: string | null;
@@ -169,7 +172,13 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
 
         objective.keyResults.forEach(kr => {
             const weight = kr.weight || 1;
-            const progress = kr.targetValue !== 0 ? (kr.currentValue / kr.targetValue) * 100 : 0;
+
+            // Use centralized logic for progress calculation
+            const achievementValue = kr.trackingType === 'PERCENTAGE' ? kr.currentValue : kr.currentValue;
+            // Wait, for PERCENTAGE, currentValue is already the fulfillment. 
+            // For UNITS, currentValue is the raw value.
+            // krUtils handle this: achievementValue is the raw value (or fulfillment if PERCENTAGE)
+            const progress = calculateKRProgress(kr.measurementDirection, kr.currentValue, kr.targetValue);
 
             totalWeightedProgress += progress * weight;
             totalWeight += weight;
@@ -264,7 +273,12 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
     const myKRs = extractMyKRs();
 
     return (
-        <div className={styles.container} style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)', minHeight: '100vh', padding: '2rem', '--glass-panel-shadow': '0 0 20px hsl(var(--module-strategy) / 0.3)' } as React.CSSProperties}>
+        <div className={styles.container} style={{
+            background: 'hsl(var(--bg-app))',
+            minHeight: '100vh',
+            padding: '2rem',
+            '--glass-panel-shadow': '0 0 20px hsl(var(--module-strategy) / 0.3)'
+        } as React.CSSProperties}>
             <div className="glass-panel" style={{ padding: '1.25rem 2rem', marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', borderRadius: '24px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
                     <h1 className={styles.header} style={{
@@ -281,7 +295,7 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
 
                         {/* Global Progress */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <div style={{ position: 'relative', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <div data-testid="strategy-global-progress" style={{ position: 'relative', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <svg width="48" height="48" viewBox="0 0 40 40">
                                     <circle cx="20" cy="20" r="17" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4" />
                                     <circle
@@ -325,10 +339,11 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                         <button
                             onClick={() => setIsCheckInOpen(true)}
                             className="premium-button"
+                            data-testid="strategy-weekly-checkin-btn"
                             style={{
-                                background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+                                background: 'rgba(255, 255, 255, 0.05)',
                                 color: 'white',
-                                border: 'none',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
                                 padding: '0.6rem 1.25rem',
                                 borderRadius: '12px',
                                 fontWeight: 800,
@@ -352,6 +367,7 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
             <div style={{ display: 'flex', gap: '0.75rem', background: 'rgba(0,0,0,0.3)', padding: '0.5rem', borderRadius: '18px', border: '1px solid rgba(255,255,255,0.08)', marginBottom: '2.5rem', alignSelf: 'flex-start', backdropFilter: 'blur(10px)' }}>
                 <button
                     onClick={() => handleTabChange('DASHBOARD')}
+                    data-testid="strategy-tab-dashboard"
                     style={{
                         padding: '0.7rem 1.75rem',
                         borderRadius: '13px',
@@ -370,6 +386,7 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                 </button>
                 <button
                     onClick={() => handleTabChange('WEIGHTS')}
+                    data-testid="strategy-tab-weights"
                     style={{
                         padding: '0.7rem 1.75rem',
                         borderRadius: '13px',
@@ -388,6 +405,7 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                 </button>
                 <button
                     onClick={() => handleTabChange('HEALTH')}
+                    data-testid="strategy-tab-health"
                     style={{
                         padding: '0.7rem 1.75rem',
                         borderRadius: '13px',
@@ -406,192 +424,204 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                 </button>
             </div>
 
-            {viewMode === 'DASHBOARD' && (
-                <>
-                    <StrategyCascade purpose={purpose as any} />
+            {
+                viewMode === 'DASHBOARD' && (
+                    <>
+                        <StrategyCascade purpose={purpose as any} />
 
-                    <section className={`glass-panel ${styles.section}`} style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', boxShadow: '0 8px 32px rgba(0,0,0,0.2)', marginTop: '2rem', borderRadius: '24px', padding: '2rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                            <h2 className={styles.sectionTitle} style={{ marginBottom: 0, color: '#fff', fontSize: '1.2rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px' }}>PROPÓSITOS</h2>
-                            {!showAreaPurpose && (
-                                <button
-                                    onClick={() => setShowAreaPurpose(true)}
-                                    style={{ background: 'transparent', border: 'none', color: theme.color, fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}
-                                >
-                                    + Agregar Propósito de Área
-                                </button>
-                            )}
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-                            <div className={styles.megaCard} style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '16px', backdropFilter: 'blur(5px)' }}>
-                                <div style={{ fontSize: '0.7rem', fontWeight: 900, color: theme.color, textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '1px' }}>🎯 Organizacional</div>
-                                <EditableText
-                                    initialValue={purpose?.statement || ''}
-                                    onSave={async (val) => { if (purpose) await updatePurpose(purpose.id, val); }}
-                                    placeholder="Propósito organizacional..."
-                                    style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}
-                                />
+                        <section className={`glass-panel ${styles.section}`} style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', boxShadow: '0 8px 32px rgba(0,0,0,0.2)', marginTop: '2rem', borderRadius: '24px', padding: '2rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                                <h2 className={styles.sectionTitle} style={{ marginBottom: 0, color: '#fff', fontSize: '1.2rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px' }}>PROPÓSITOS</h2>
+                                {!showAreaPurpose && (
+                                    <button
+                                        onClick={() => setShowAreaPurpose(true)}
+                                        data-testid="strategy-add-area-purpose"
+                                        style={{ background: 'transparent', border: 'none', color: theme.color, fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}
+                                    >
+                                        + Agregar Propósito de Área
+                                    </button>
+                                )}
                             </div>
 
-                            {showAreaPurpose && (
-                                <div className={styles.megaCard} style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '16px', backdropFilter: 'blur(5px)', position: 'relative' }}>
-                                    <div style={{ fontSize: '0.7rem', fontWeight: 900, color: theme.color, textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '1px' }}>🏢 de Área</div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+                                <div data-testid="strategy-purpose-org" className={styles.megaCard} style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '16px', backdropFilter: 'blur(5px)' }}>
+                                    <div style={{ fontSize: '0.7rem', fontWeight: 900, color: theme.color, textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '1px' }}>🎯 Organizacional</div>
                                     <EditableText
-                                        initialValue={areaPurpose?.statement || ''}
-                                        onSave={async (val) => {
-                                            if (areaPurpose) await updatePurpose(areaPurpose.id, val);
-                                            else await createAreaPurpose(val);
-                                        }}
-                                        placeholder="Propósito de área..."
+                                        initialValue={purpose?.statement || ''}
+                                        onSave={async (val) => { if (purpose) await updatePurpose(purpose.id, val); }}
+                                        placeholder="Propósito organizacional..."
                                         style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}
                                     />
-                                    {!areaPurpose && (
-                                        <button onClick={() => setShowAreaPurpose(false)} style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>×</button>
-                                    )}
                                 </div>
+
+                                {showAreaPurpose && (
+                                    <div data-testid="strategy-purpose-area" className={styles.megaCard} style={{ border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)', padding: '1.5rem', borderRadius: '16px', backdropFilter: 'blur(5px)', position: 'relative' }}>
+                                        <div style={{ fontSize: '0.7rem', fontWeight: 900, color: theme.color, textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '1px' }}>🏢 de Área</div>
+                                        <EditableText
+                                            initialValue={areaPurpose?.statement || ''}
+                                            onSave={async (val) => {
+                                                if (areaPurpose) await updatePurpose(areaPurpose.id, val);
+                                                else await createAreaPurpose(val);
+                                            }}
+                                            placeholder="Propósito de área..."
+                                            style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}
+                                        />
+                                        {!areaPurpose && (
+                                            <button onClick={() => setShowAreaPurpose(false)} style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>×</button>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </section>
+
+                        <section className={`glass-panel ${styles.section}`} style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', boxShadow: '0 8px 32px rgba(0,0,0,0.2)', marginTop: '2rem', borderRadius: '24px', padding: '2rem' }}>
+                            <h2 className={styles.sectionTitle} style={{ color: '#fff', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', fontSize: '1.1rem' }}>VALORES ORGANIZACIONALES</h2>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+                                {organizationalValues.map((value) => (
+                                    <div key={value.id} style={{ background: 'rgba(0, 179, 161, 0.1)', border: '1px solid rgba(0, 179, 161, 0.3)', color: '#00b3a1', borderRadius: '20px', padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem', fontWeight: 800, boxShadow: '0 0 10px rgba(0, 179, 161, 0.1)' }}>
+                                        <span>{value.statement}</span>
+                                        <form action={async () => { await deleteOrganizationalValue(value.id); }}>
+                                            <button type="submit" data-testid="strategy-delete-value-btn" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00b3a1', padding: 0, fontSize: '1.2rem', lineHeight: 1 }}>×</button>
+                                        </form>
+                                    </div>
+                                ))}
+                            </div>
+                            {organizationalValues.length < 10 && (
+                                <form action={createOrganizationalValue} style={{ display: 'flex', gap: '0.75rem', maxWidth: '400px' }}>
+                                    <input name="statement" data-testid="strategy-add-value-input" placeholder="Nuevo valor..." required maxLength={50} style={{ flex: 1, padding: '0.6rem 1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff' }} />
+                                    <button type="submit" data-testid="strategy-add-value-btn" className="btn-secondary" style={{ background: theme.color, border: 'none', borderRadius: '12px', color: '#fff', width: '40px', fontWeight: 900 }}>+</button>
+                                </form>
                             )}
-                        </div>
-                    </section>
+                        </section>
 
-                    <section className={`glass-panel ${styles.section}`} style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', boxShadow: '0 8px 32px rgba(0,0,0,0.2)', marginTop: '2rem', borderRadius: '24px', padding: '2rem' }}>
-                        <h2 className={styles.sectionTitle} style={{ color: '#fff', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', fontSize: '1.1rem' }}>VALORES ORGANIZACIONALES</h2>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
-                            {organizationalValues.map((value) => (
-                                <div key={value.id} style={{ background: 'rgba(0, 179, 161, 0.1)', border: '1px solid rgba(0, 179, 161, 0.3)', color: '#00b3a1', borderRadius: '20px', padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem', fontWeight: 800, boxShadow: '0 0 10px rgba(0, 179, 161, 0.1)' }}>
-                                    <span>{value.statement}</span>
-                                    <form action={async () => { await deleteOrganizationalValue(value.id); }}>
-                                        <button type="submit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00b3a1', padding: 0, fontSize: '1.2rem', lineHeight: 1 }}>×</button>
-                                    </form>
-                                </div>
-                            ))}
-                        </div>
-                        {organizationalValues.length < 10 && (
-                            <form action={createOrganizationalValue} style={{ display: 'flex', gap: '0.75rem', maxWidth: '400px' }}>
-                                <input name="statement" placeholder="Nuevo valor..." required maxLength={50} style={{ flex: 1, padding: '0.6rem 1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff' }} />
-                                <button type="submit" className="btn-secondary" style={{ background: theme.color, border: 'none', borderRadius: '12px', color: '#fff', width: '40px', fontWeight: 900 }}>+</button>
-                            </form>
-                        )}
-                    </section>
-
-                    <section className={`glass-panel ${styles.section}`} style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', boxShadow: '0 8px 32px rgba(0,0,0,0.2)', marginTop: '2rem', borderRadius: '24px', padding: '2rem' }}>
-                        <h2 className={styles.sectionTitle} style={{ color: '#fff', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', fontSize: '1.1rem' }}>EJES ESTRATÉGICOS</h2>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
-                            {strategicAxes.map((axis) => (
-                                <div key={axis.id} style={{ background: 'rgba(0, 179, 161, 0.1)', border: '1px solid rgba(0, 179, 161, 0.3)', color: '#00b3a1', borderRadius: '20px', padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem', fontWeight: 800, boxShadow: '0 0 10px rgba(0, 179, 161, 0.1)' }}>
-                                    <span>{axis.statement}</span>
-                                    <form action={async () => { await deleteStrategicAxis(axis.id); }}>
-                                        <button type="submit" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00b3a1', padding: 0, fontSize: '1.2rem', lineHeight: 1 }}>×</button>
-                                    </form>
-                                </div>
-                            ))}
-                        </div>
-                        {strategicAxes.length < 5 && (
-                            <form action={createStrategicAxis} style={{ display: 'flex', gap: '0.75rem', maxWidth: '400px' }}>
-                                <input name="statement" placeholder="Nuevo eje..." required maxLength={100} style={{ flex: 1, padding: '0.6rem 1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff' }} />
-                                <button type="submit" className="btn-secondary" style={{ background: theme.color, border: 'none', borderRadius: '12px', color: '#fff', width: '40px', fontWeight: 900 }}>+</button>
-                            </form>
-                        )}
-                    <MetasSection themeColor={theme.color} metas={strategicGoals} />
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
-                            <h2 className={styles.sectionTitle} style={{ marginBottom: 0, color: '#fff', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', fontSize: '1.2rem' }}>MEGAS</h2>
-                            {purpose && <MegaCreator purposeId={purpose.id} areaPurpose={areaPurpose?.statement || ''} placeholder={dict.strategy.megas.placeholder} themeColor={theme.color} />}
-                        </div>
-                        <div className={styles.megaGrid}>
-                            {purpose?.megas.map((mega, i) => (
-                                <div key={mega.id} style={{ marginBottom: '3.5rem' }}>
-                                    <div className={styles.megaCard} style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '24px', padding: '2rem', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 10px 40px rgba(0,0,0,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', overflow: 'hidden', backdropFilter: 'blur(10px)' }}>
-                                        <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: theme.color, boxShadow: `0 0 15px ${theme.color}` }}></div>
-                                        <div>
-                                            <div style={{ fontSize: '0.7rem', fontWeight: 950, color: theme.color, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '0.25rem' }}>MEGA {i + 1}</div>
-                                            <h3 style={{ margin: 0, fontWeight: 900, color: '#fff', fontSize: '1.35rem' }}><EditableText initialValue={mega.statement} onSave={async (val) => await updateMega(mega.id, val)} /></h3>
-                                        </div>
-                                        <button onClick={async () => { if (confirm("¿Eliminar Mega?")) (await import('@/app/actions')).deleteMega(mega.id); }} style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#fca5a5', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}><Trash2 size={16} /></button>
+                        <section className={`glass-panel ${styles.section}`} style={{ border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', boxShadow: '0 8px 32px rgba(0,0,0,0.2)', marginTop: '2rem', borderRadius: '24px', padding: '2rem' }}>
+                            <h2 className={styles.sectionTitle} style={{ color: '#fff', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', fontSize: '1.1rem' }}>EJES ESTRATÉGICOS</h2>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+                                {strategicAxes.map((axis) => (
+                                    <div key={axis.id} style={{ background: 'rgba(0, 179, 161, 0.1)', border: '1px solid rgba(0, 179, 161, 0.3)', color: '#00b3a1', borderRadius: '20px', padding: '0.4rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.85rem', fontWeight: 800, boxShadow: '0 0 10px rgba(0, 179, 161, 0.1)' }}>
+                                        <span>{axis.statement}</span>
+                                        <form action={async () => { await deleteStrategicAxis(axis.id); }}>
+                                            <button type="submit" data-testid="strategy-delete-axis-btn" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#00b3a1', padding: 0, fontSize: '1.2rem', lineHeight: 1 }}>×</button>
+                                        </form>
                                     </div>
-                                    <div style={{ background: 'rgba(255,255,255,0.01)', borderRadius: '24px', padding: '2rem', marginTop: '1.5rem', border: '1px solid rgba(255,255,255,0.03)' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-                                            <div style={{ width: '3px', height: '14px', background: theme.color, borderRadius: '2px' }} />
-                                            <h3 style={{ margin: 0, color: 'rgba(255,255,255,0.5)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1.5px', fontSize: '0.8rem' }}>
-                                                {dict.strategy.objectives.title}
-                                            </h3>
+                                ))}
+                            </div>
+                            {strategicAxes.length < 5 && (
+                                <form action={createStrategicAxis} style={{ display: 'flex', gap: '0.75rem', maxWidth: '400px' }}>
+                                    <input name="statement" data-testid="strategy-add-axis-input" placeholder="Nuevo eje..." required maxLength={100} style={{ flex: 1, padding: '0.6rem 1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: '#fff' }} />
+                                    <button type="submit" data-testid="strategy-add-axis-btn" className="btn-secondary" style={{ background: theme.color, border: 'none', borderRadius: '12px', color: '#fff', width: '40px', fontWeight: 900 }}>+</button>
+                                </form>
+                            )}
+                            <MetasSection themeColor={theme.color} metas={strategicGoals} />
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
+                                <h2 className={styles.sectionTitle} style={{ marginBottom: 0, color: '#fff', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1px', fontSize: '1.2rem' }}>MEGAS</h2>
+                                {purpose && <MegaCreator purposeId={purpose.id} areaPurpose={areaPurpose?.statement || ''} placeholder={dict.strategy.megas.placeholder} themeColor={theme.color} />}
+                            </div>
+                            <div className={styles.megaGrid}>
+                                {purpose?.megas.map((mega, i) => (
+                                    <div key={mega.id} style={{ marginBottom: '3.5rem' }}>
+                                        <div className={styles.megaCard} style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '24px', padding: '2rem', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 10px 40px rgba(0,0,0,0.15)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'relative', overflow: 'hidden', backdropFilter: 'blur(10px)' }}>
+                                            <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: theme.color, boxShadow: `0 0 15px ${theme.color}` }}></div>
+                                            <div>
+                                                <div style={{ fontSize: '0.7rem', fontWeight: 950, color: theme.color, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '0.25rem' }}>MEGA {i + 1}</div>
+                                                <h3 style={{ margin: 0, fontWeight: 900, color: '#fff', fontSize: '1.35rem' }}><EditableText initialValue={mega.statement} onSave={async (val) => await updateMega(mega.id, val)} /></h3>
+                                            </div>
+                                            <button onClick={async () => { if (confirm("¿Eliminar Mega?")) (await import('@/app/actions')).deleteMega(mega.id); }} data-testid="strategy-mega-delete-btn" style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#fca5a5', borderRadius: '50%', width: '36px', height: '36px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}><Trash2 size={16} /></button>
                                         </div>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
-                                            {mega.objectives.map((obj, j) => (
-                                                <div key={obj.id} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '20px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.08)', transition: 'transform 0.2s, background 0.2s', position: 'relative' }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
-                                                        <div style={{ flex: 1 }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                                                                <span style={{ fontSize: '0.65rem', fontWeight: 900, color: theme.color, background: `${theme.color}20`, padding: '2px 8px', borderRadius: '6px' }}>OBJ {j + 1}</span>
-                                                            </div>
-                                                            <h4 style={{ margin: 0, color: '#fff', fontSize: '1rem', fontWeight: 800, lineHeight: 1.4 }}>
-                                                                <EditableText initialValue={obj.statement} onSave={async (val) => await updateObjectiveTitle(obj.id, val)} />
-                                                            </h4>
-                                                        </div>
-                                                        <button onClick={() => toggleObjective(obj.id)} style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '8px', padding: '4px' }}>
-                                                            {expandedObjectives[obj.id] ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                                                        </button>
-                                                    </div>
-
-                                                    {expandedObjectives[obj.id] && (
-                                                        <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                                            {obj.keyResults.map(kr => (
-                                                                <div key={kr.id} style={{ background: 'rgba(0,0,0,0.2)', padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', transition: 'border 0.2s' }}>
-                                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
-                                                                        <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>{kr.statement}</span>
-                                                                        <button
-                                                                            onClick={() => setSelectedKR(kr)}
-                                                                            style={{
-                                                                                background: `${theme.color}20`,
-                                                                                border: `1px solid ${theme.color}40`,
-                                                                                color: theme.color,
-                                                                                borderRadius: '8px',
-                                                                                fontSize: '0.75rem',
-                                                                                fontWeight: 900,
-                                                                                padding: '4px 8px',
-                                                                                cursor: 'pointer',
-                                                                                boxShadow: `0 0 10px ${theme.color}15`
-                                                                            }}
-                                                                        >
-                                                                            {kr.targetValue !== 0 ? Math.round((kr.currentValue / kr.targetValue) * 100) : 0}%
-                                                                        </button>
-                                                                    </div>
+                                        <div style={{ background: 'rgba(255,255,255,0.01)', borderRadius: '24px', padding: '2rem', marginTop: '1.5rem', border: '1px solid rgba(255,255,255,0.03)' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                                                <div style={{ width: '3px', height: '14px', background: theme.color, borderRadius: '2px' }} />
+                                                <h3 style={{ margin: 0, color: 'rgba(255,255,255,0.5)', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '1.5px', fontSize: '0.8rem' }}>
+                                                    {dict.strategy.objectives.title}
+                                                </h3>
+                                            </div>
+                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+                                                {mega.objectives.map((obj, j) => (
+                                                    <div key={obj.id} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: '20px', padding: '1.5rem', border: '1px solid rgba(255,255,255,0.08)', transition: 'transform 0.2s, background 0.2s', position: 'relative' }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
+                                                            <div style={{ flex: 1 }}>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                                                    <span style={{ fontSize: '0.65rem', fontWeight: 900, color: theme.color, background: `${theme.color}20`, padding: '2px 8px', borderRadius: '6px' }}>OBJ {j + 1}</span>
                                                                 </div>
-                                                            ))}
-                                                            <KeyResultCreator objectiveId={obj.id} megaDeadline={mega.deadline} />
+                                                                <h4 style={{ margin: 0, color: '#fff', fontSize: '1rem', fontWeight: 800, lineHeight: 1.4 }}>
+                                                                    <EditableText initialValue={obj.statement} onSave={async (val) => await updateObjectiveTitle(obj.id, val)} />
+                                                                </h4>
+                                                            </div>
+                                                            <button onClick={() => toggleObjective(obj.id)} data-testid="strategy-objective-expand-btn" style={{ background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '8px', padding: '4px' }}>
+                                                                {expandedObjectives[obj.id] ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                                                            </button>
                                                         </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                            <form action={createObjective} style={{ display: 'flex', gap: '0.5rem', flex: '1 1 300px' }}>
-                                                <input type="hidden" name="megaId" value={mega.id} />
-                                                <input name="statement" placeholder="Nuevo objetivo..." required style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
-                                                <button type="submit" style={{ background: theme.color, color: 'white', border: 'none', borderRadius: '8px', padding: '0 1rem' }}>+</button>
-                                            </form>
+
+                                                        {expandedObjectives[obj.id] && (
+                                                            <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                                                {obj.keyResults.map(kr => (
+                                                                    <div key={kr.id} style={{ background: 'rgba(0,0,0,0.2)', padding: '0.75rem 1rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', transition: 'border 0.2s' }}>
+                                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+                                                                            <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>{kr.statement}</span>
+                                                                            <button
+                                                                                onClick={() => setSelectedKR(kr)}
+                                                                                data-testid="strategy-kr-detail-btn"
+                                                                                style={{
+                                                                                    background: `${theme.color}20`,
+                                                                                    border: `1px solid ${theme.color}40`,
+                                                                                    color: theme.color,
+                                                                                    borderRadius: '8px',
+                                                                                    fontSize: '0.75rem',
+                                                                                    fontWeight: 900,
+                                                                                    padding: '4px 8px',
+                                                                                    cursor: 'pointer',
+                                                                                    boxShadow: `0 0 10px ${theme.color}15`
+                                                                                }}
+                                                                            >
+                                                                                {calculateKRProgress(kr.measurementDirection, kr.currentValue, kr.targetValue)}%
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                                <KeyResultCreator objectiveId={obj.id} megaDeadline={mega.deadline} />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                                <form action={createObjective} style={{ display: 'flex', gap: '0.5rem', flex: '1 1 300px' }}>
+                                                    <input type="hidden" name="megaId" value={mega.id} />
+                                                    <input name="statement" placeholder="Nuevo objetivo..." required style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                                                    <button type="submit" style={{ background: theme.color, color: 'white', border: 'none', borderRadius: '8px', padding: '0 1rem' }}>+</button>
+                                                </form>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    </section>
-                </>
-            )}
+                                ))}
+                            </div>
+                        </section>
+                    </>
+                )
+            }
 
-            {viewMode === 'WEIGHTS' && (
-                <WeightManagement purpose={purpose as any} themeColor={theme.color} />
-            )}
+            {
+                viewMode === 'WEIGHTS' && (
+                    <WeightManagement purpose={purpose as any} themeColor={theme.color} />
+                )
+            }
 
-            {viewMode === 'HEALTH' && (
-                <StrategyHealthReport themeColor={theme.color} />
-            )}
+            {
+                viewMode === 'HEALTH' && (
+                    <StrategyHealthReport themeColor={theme.color} />
+                )
+            }
 
-            {selectedKR && (
-                <KeyResultProgressModal isOpen={!!selectedKR} onClose={() => setSelectedKR(null)} kr={selectedKR} userRole={user?.role} />
-            )}
+            {
+                selectedKR && (
+                    <KeyResultProgressModal isOpen={!!selectedKR} onClose={() => setSelectedKR(null)} kr={selectedKR} userRole={user?.role} />
+                )
+            }
 
-            {isCheckInOpen && (
-                <KRCheckInModal isOpen={isCheckInOpen} onClose={() => setIsCheckInOpen(false)} keyResults={myKRs} />
-            )}
-        </div>
+            {
+                isCheckInOpen && (
+                    <KRCheckInModal isOpen={isCheckInOpen} onClose={() => setIsCheckInOpen(false)} keyResults={myKRs} />
+                )
+            }
+        </div >
     );
 }
 
@@ -635,6 +665,7 @@ function MegaCreator({ purposeId, areaPurpose, placeholder, themeColor }: { purp
                     onClick={handleSuggest}
                     disabled={loading}
                     className="btn-secondary"
+                    data-testid="strategy-mega-suggest-btn"
                     style={{
                         position: 'absolute',
                         right: '5px',
@@ -653,6 +684,7 @@ function MegaCreator({ purposeId, areaPurpose, placeholder, themeColor }: { purp
             <input name="deadline" type="date" required style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.6rem 1rem', color: '#fff', colorScheme: 'dark' }} />
             <button
                 type="submit"
+                data-testid="strategy-mega-submit-btn"
                 style={{
                     background: themeColor,
                     color: 'white',
