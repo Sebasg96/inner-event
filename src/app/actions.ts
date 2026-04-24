@@ -243,6 +243,7 @@ export async function createPurpose(formData: FormData) {
         data: { statement, tenantId },
     });
     revalidatePath('/strategy');
+    revalidatePath('/strategy/planning');
 }
 
 export async function createAreaPurpose(statement: string) {
@@ -316,11 +317,13 @@ export async function createKeyResult(formData: FormData) {
     }
 
     const statement = formData.get('statement') as string;
-    const targetValue = parseFloat(formData.get('targetValue') as string);
+    const rawTargetValue = formData.get('targetValue');
+    const targetValue = rawTargetValue ? parseFloat(rawTargetValue as string) : 100;
     const metricUnit = formData.get('metricUnit') as string;
     const objectiveId = formData.get('objectiveId') as string;
     const trackingType = formData.get('trackingType') as any;
     const updatePeriodicity = formData.get('updatePeriodicity') as any;
+    const measurementDirection = formData.get('measurementDirection') as any;
 
     const startYear = formData.get('startYear') ? parseInt(formData.get('startYear') as string) : null;
     const startQuarter = formData.get('startQuarter') ? parseInt(formData.get('startQuarter') as string) : null;
@@ -330,11 +333,12 @@ export async function createKeyResult(formData: FormData) {
     await prisma.keyResult.create({
         data: {
             statement,
-            targetValue,
+            targetValue: isNaN(targetValue) ? 100 : targetValue,
             metricUnit,
             objectiveId,
             tenantId,
             trackingType: trackingType || 'PERCENTAGE',
+            measurementDirection: measurementDirection || 'MAXIMIZE',
             updatePeriodicity: updatePeriodicity || null,
             weight: 0,
             ownerId: ownerId, // Assign owner

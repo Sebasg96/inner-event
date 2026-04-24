@@ -101,6 +101,7 @@ export default function HomePageClient({ purpose }: HomePageClientProps) {
                 <LanguageSwitcher />
                 <button
                     onClick={() => logout()}
+                    data-testid="hub-logout-btn"
                     style={{
                         fontSize: '0.8rem',
                         color: 'hsl(var(--text-muted))',
@@ -136,7 +137,7 @@ export default function HomePageClient({ purpose }: HomePageClientProps) {
                 boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
                 borderRadius: '24px'
             }}>
-                <Link href="/" style={{ display: 'block', width: '100%' }}>
+                <Link href="/" data-testid="hub-page-title" style={{ display: 'block', width: '100%' }}>
                     <img src="/pragma-logo.png" alt="PRAGMA - Donde la estrategia pasa" style={{ maxWidth: '400px', width: '100%', height: 'auto', filter: 'drop-shadow(0 0 10px rgba(255,255,255,0.2))' }} />
                 </Link>
             </div>
@@ -159,6 +160,7 @@ export default function HomePageClient({ purpose }: HomePageClientProps) {
                         <Link
                             key={mod.href}
                             href={mod.href}
+                            data-testid={`hub-nav-${mod.href.replace('/', '')}-link`}
                             className="glass-panel module-card"
                             style={{ '--mod-color': mod.color } as React.CSSProperties}
                         >

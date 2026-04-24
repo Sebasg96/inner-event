@@ -53,7 +53,7 @@ export default function CapacitiesDashboard() {
                 boxShadow: theme.glow,
             }}>
                 <div>
-                    <h1 className={styles.header} style={{
+                    <h1 className={styles.header} data-testid="capacities-page-title" style={{
                         background: `linear-gradient(to right, #fff, ${theme.color})`,
                         WebkitBackgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',

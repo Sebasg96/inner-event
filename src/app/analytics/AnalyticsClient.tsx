@@ -70,7 +70,7 @@ export default function AnalyticsClient({ metrics, narrative, generatedAt }: Pro
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <PrismaAvatar size={50} />
-                    <h1 className={styles.header} style={{
+                    <h1 className={styles.header} data-testid="analytics-page-title" style={{
                         background: `linear-gradient(to right, #333, ${theme.color})`,
                         WebkitBackgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',

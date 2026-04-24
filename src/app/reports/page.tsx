@@ -16,7 +16,7 @@ export default function ReportsPage() {
     return (
         <div className={styles.container}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <h1 className={styles.header} style={{
+                <h1 className={styles.header} data-testid="reports-page-title" style={{
                     background: `linear-gradient(to right, #fff, ${theme.color})`,
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent'

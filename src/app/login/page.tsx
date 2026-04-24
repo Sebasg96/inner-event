@@ -180,6 +180,7 @@ export default function LoginPage() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.5 }}
+                        data-testid="auth-page-title"
                         style={{
                             fontSize: '2.25rem',
                             fontWeight: 700,
@@ -250,6 +251,7 @@ export default function LoginPage() {
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}
                                 exit={{ opacity: 0, height: 0 }}
+                                data-testid="auth-login-error-message"
                                 style={{ color: '#ff4d4d', fontSize: '0.9rem', textAlign: 'center', background: 'rgba(255,77,77,0.1)', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255,77,77,0.2)' }}
                             >
                                 {error}

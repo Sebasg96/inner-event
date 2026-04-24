@@ -281,7 +281,7 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
         } as React.CSSProperties}>
             <div className="glass-panel" style={{ padding: '1.25rem 2rem', marginBottom: '2.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', borderRadius: '24px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                    <h1 className={styles.header} style={{
+                    <h1 className={styles.header} data-testid="strategy-page-title" style={{
                         fontSize: '1.75rem',
                         color: '#fff',
                         fontWeight: 900,
@@ -448,7 +448,15 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                                     <div style={{ fontSize: '0.7rem', fontWeight: 900, color: theme.color, textTransform: 'uppercase', marginBottom: '0.5rem', letterSpacing: '1px' }}>🎯 Organizacional</div>
                                     <EditableText
                                         initialValue={purpose?.statement || ''}
-                                        onSave={async (val) => { if (purpose) await updatePurpose(purpose.id, val); }}
+                                        onSave={async (val) => {
+                                            if (purpose && purpose.id) {
+                                                await updatePurpose(purpose.id, val);
+                                            } else {
+                                                const fd = new FormData();
+                                                fd.append('statement', val);
+                                                await createPurpose(fd);
+                                            }
+                                        }}
                                         placeholder="Propósito organizacional..."
                                         style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}
                                     />
@@ -467,7 +475,7 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                                             style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}
                                         />
                                         {!areaPurpose && (
-                                            <button onClick={() => setShowAreaPurpose(false)} style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>×</button>
+                                            <button onClick={() => setShowAreaPurpose(false)} data-testid="strategy-dismiss-area-purpose-btn" style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}>×</button>
                                         )}
                                     </div>
                                 )}
@@ -585,8 +593,8 @@ export default function StrategyDashboard({ purpose, areaPurpose, analysisData, 
                                                 ))}
                                                 <form action={createObjective} style={{ display: 'flex', gap: '0.5rem', flex: '1 1 300px' }}>
                                                     <input type="hidden" name="megaId" value={mega.id} />
-                                                    <input name="statement" placeholder="Nuevo objetivo..." required style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
-                                                    <button type="submit" style={{ background: theme.color, color: 'white', border: 'none', borderRadius: '8px', padding: '0 1rem' }}>+</button>
+                                                    <input name="statement" data-testid="strategy-add-objective-input" placeholder="Nuevo objetivo..." required style={{ flex: 1, padding: '0.5rem', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                                                    <button type="submit" data-testid="strategy-add-objective-btn" style={{ background: theme.color, color: 'white', border: 'none', borderRadius: '8px', padding: '0 1rem' }}>+</button>
                                                 </form>
                                             </div>
                                         </div>
@@ -654,6 +662,7 @@ function MegaCreator({ purposeId, areaPurpose, placeholder, themeColor }: { purp
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <input
                     name="statement"
+                    data-testid="strategy-mega-statement-input"
                     placeholder={placeholder}
                     required
                     defaultValue={suggestion}
@@ -681,7 +690,7 @@ function MegaCreator({ purposeId, areaPurpose, placeholder, themeColor }: { purp
                     {loading ? '⏳' : '✨'}
                 </button>
             </div>
-            <input name="deadline" type="date" required style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.6rem 1rem', color: '#fff', colorScheme: 'dark' }} />
+            <input name="deadline" data-testid="strategy-mega-deadline-input" type="date" required style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px', padding: '0.6rem 1rem', color: '#fff', colorScheme: 'dark' }} />
             <button
                 type="submit"
                 data-testid="strategy-mega-submit-btn"

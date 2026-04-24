@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, X, Send, Bot } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/lib/auth/AuthContext';
 import styles from './PragmaIA.module.css';
 
@@ -16,7 +17,7 @@ export default function PragmaIA() {
     const { user } = useAuth();
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([
-        { role: 'ai', content: '¡Hola! Soy PRAGM-IA 🪐. Estoy monitoreando tus sistemas. ¿En qué puedo ayudarte a mejorar tu estrategia hoy?' }
+        { role: 'ai', content: '¡Hola! Soy PRAGM-AI 🪐. Estoy monitoreando tus sistemas. ¿En qué puedo ayudarte a mejorar tu estrategia hoy?' }
     ]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -84,7 +85,7 @@ export default function PragmaIA() {
                         <div className={styles.header}>
                             <div className={styles.title}>
                                 <Bot size={20} className="text-indigo-400" style={{ color: '#818cf8' }} />
-                                PRAGM-IA
+                                PRAGM-AI
                             </div>
                             <button onClick={() => setIsOpen(false)} className={styles.closeBtn}>
                                 <X size={20} />
@@ -94,7 +95,11 @@ export default function PragmaIA() {
                         <div className={styles.messages} ref={scrollRef}>
                             {messages.map((m, i) => (
                                 <div key={i} className={`${styles.message} ${m.role === 'user' ? styles.userMessage : styles.aiMessage}`}>
-                                    {m.content}
+                                    {m.role === 'ai' ? (
+                                        <ReactMarkdown>{m.content}</ReactMarkdown>
+                                    ) : (
+                                        m.content
+                                    )}
                                 </div>
                             ))}
                             {isLoading && (
