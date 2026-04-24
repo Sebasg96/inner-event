@@ -38,7 +38,7 @@ export default function MegaHeader({ mega }: MegaHeaderProps) {
     const year = new Date(mega.deadline).getFullYear();
 
     return (
-        <div style={{
+        <div data-testid="dashboard-page-title" style={{
             background: 'linear-gradient(135deg, hsl(222, 60%, 14%) 0%, hsl(220, 47%, 11%) 100%)',
             border: '1px solid rgba(255,255,255,0.12)',
             borderRadius: '16px',

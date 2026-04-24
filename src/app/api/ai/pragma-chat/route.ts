@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
         const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
 
         if (authError || !authUser) {
-            return NextResponse.json({ reply: "🔒 Unauthorized: Please login to talk to PRAGM-IA." }, { status: 401 });
+            return NextResponse.json({ reply: "🔒 Unauthorized: Please login to talk to PRAGM-AI." }, { status: 401 });
         }
 
         const body = await req.json();
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
         let ragContext = "";
         const similarDocs = await searchSimilarDocuments(message, dbUser.tenantId, 3);
-        
+
         if (similarDocs && similarDocs.length > 0) {
             ragContext = similarDocs.map(doc => `- ${doc.content}`).join('\n');
             console.log(`[PragmaIA] 📚 Retrieved ${similarDocs.length} relevant documents for tenant ${dbUser.tenantId}`);
@@ -46,11 +46,11 @@ export async function POST(req: NextRequest) {
         // We take the last 6 messages to avoid hitting token limits while keeping context
         const recentHistory = (history || [])
             .slice(-7, -1) // Excluding the very last message which is the current "message"
-            .map((m: any) => `${m.role === 'user' ? 'User' : 'PRAGM-IA'}: ${m.content}`)
+            .map((m: any) => `${m.role === 'user' ? 'User' : 'PRAGM-AI'}: ${m.content}`)
             .join('\n');
 
         const prompt = `
-            You are PRAGM-IA, an advanced AI Strategy Assistant integrated into the "Antigravity" platform. 
+            You are PRAGM-AI, an advanced AI Strategy Assistant integrated into the "Antigravity" platform. 
             You appear as a holographic space companion.
             
             Current User Context: ${context || 'None'}

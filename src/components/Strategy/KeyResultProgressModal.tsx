@@ -123,7 +123,7 @@ export default function KeyResultProgressModal({ isOpen, onClose, kr, userRole }
                             <div style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 600 }}>{dirConfig.label}: {dirConfig.description}</div>
                         </div>
                     </div>
-                    <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: '#64748b', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>&times;</button>
+                    <button onClick={onClose} data-testid="kr-progress-modal-close-btn" style={{ background: '#f1f5f9', border: 'none', cursor: 'pointer', fontSize: '1.25rem', color: '#64748b', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>&times;</button>
                 </div>
 
                 <div style={{ marginBottom: '2rem', padding: '1.25rem', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>

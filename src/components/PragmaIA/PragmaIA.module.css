@@ -219,3 +219,35 @@
         bottom: 1rem;
     }
 }
+
+/* Markdown Styles inside AI Messages */
+.aiMessage p {
+    margin: 0 0 0.75rem 0;
+}
+
+.aiMessage p:last-child {
+    margin-bottom: 0;
+}
+
+.aiMessage ul,
+.aiMessage ol {
+    margin: 0 0 0.75rem 0;
+    padding-left: 1.5rem;
+}
+
+.aiMessage li {
+    margin-bottom: 0.25rem;
+}
+
+.aiMessage strong {
+    color: #fff;
+    font-weight: 700;
+}
+
+.aiMessage code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.85em;
+}

@@ -94,20 +94,20 @@ export default function EmergentClient({
 
     const renderHardChoices = () => (
         <div className="glass-panel" style={{ padding: '2rem', borderTop: `4px solid ${accentColor}` }}>
-            <h2 style={{ color: 'hsl(var(--text-main))', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h2 style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 🛑 Bitácora de "Hard Choices"
             </h2>
-            <p style={{ color: 'hsl(var(--text-muted))', marginBottom: '1.5rem', fontStyle: 'italic' }}>
+            <p style={{ color: 'rgba(255, 255, 255, 0.8)', marginBottom: '1.5rem', fontStyle: 'italic' }}>
                 "Estrategia es renunciar". Registro de oportunidades rechazadas para mantener el foco.
             </p>
 
             <form action={createHardChoice} style={{ marginBottom: '2rem', display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
                 <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>Oportunidad Rechazada</label>
+                    <label style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.8)' }}>Oportunidad Rechazada</label>
                     <input name="description" placeholder="Ej: Expansión a mercado asiático..." style={{ width: '100%' }} required />
                 </div>
                 <div style={{ flex: 2 }}>
-                    <label style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>Razonamiento Estratégico</label>
+                    <label style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.8)' }}>Razonamiento Estratégico</label>
                     <input name="reasoning" placeholder="Por qué decimos NO ahora..." style={{ width: '100%' }} required />
                 </div>
                 <button type="submit" className="btn-primary" style={{ background: accentColor, height: '42px' }}>Registrar</button>
@@ -116,32 +116,32 @@ export default function EmergentClient({
             <div style={{ display: 'grid', gap: '1rem' }}>
                 {hardChoices.map((hc) => (
                     <div key={hc.id} style={{ padding: '1rem', background: 'hsl(var(--bg-app))', borderRadius: '8px', borderLeft: '2px solid var(--text-muted)' }}>
-                        <div style={{ fontWeight: 'bold', color: 'hsl(var(--text-main))' }}>{hc.description}</div>
-                        <div style={{ color: 'hsl(var(--text-muted))', fontSize: '0.9rem' }}>{hc.reasoning}</div>
+                        <div style={{ fontWeight: 'bold', color: 'white' }}>{hc.description}</div>
+                        <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.9rem' }}>{hc.reasoning}</div>
                         <div style={{ fontSize: '0.75rem', marginTop: '0.5rem', opacity: 0.6 }}>{new Date(hc.date).toLocaleDateString()}</div>
                     </div>
                 ))}
-                {hardChoices.length === 0 && <div style={{ color: 'hsl(var(--text-muted))', textAlign: 'center' }}>No hay renuncias registradas aún.</div>}
+                {hardChoices.length === 0 && <div style={{ color: 'rgba(255, 255, 255, 0.8)', textAlign: 'center' }}>No hay renuncias registradas aún.</div>}
             </div>
         </div>
     );
 
     const renderCoalition = () => (
         <div className="glass-panel" style={{ padding: '2rem', borderTop: `4px solid ${accentColor}` }}>
-            <h2 style={{ color: 'hsl(var(--text-main))', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h2 style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 🧠 Panel de "Coalición Crítica"
             </h2>
-            <p style={{ color: 'hsl(var(--text-muted))', marginBottom: '1.5rem' }}>
+            <p style={{ color: 'rgba(255, 255, 255, 0.8)', marginBottom: '1.5rem' }}>
                 La mente de la organización. Documentación de conversaciones estratégicas clave.
             </p>
 
             <form action={createStrategicConversation} style={{ marginBottom: '2rem', display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
                 <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>Tema de Conversación</label>
+                    <label style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.8)' }}>Tema de Conversación</label>
                     <input name="topic" placeholder="Ej: Cambio en modelo de precios..." style={{ width: '100%' }} required />
                 </div>
                 <div style={{ flex: 2 }}>
-                    <label style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>Conclusión / Insight</label>
+                    <label style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.8)' }}>Conclusión / Insight</label>
                     <input name="conclusion" placeholder="A qué llegamos..." style={{ width: '100%' }} required />
                 </div>
                 <button type="submit" className="btn-primary" style={{ background: accentColor, height: '42px' }}>Guardar</button>
@@ -150,22 +150,22 @@ export default function EmergentClient({
             <div style={{ display: 'grid', gap: '1rem' }}>
                 {strategicConversations.map((sc) => (
                     <div key={sc.id} style={{ padding: '1rem', background: 'hsl(var(--bg-app))', borderRadius: '8px', borderLeft: `2px solid ${accentColor}` }}>
-                        <div style={{ fontWeight: 'bold', color: 'hsl(var(--text-main))' }}>{sc.topic}</div>
-                        <div style={{ color: 'hsl(var(--text-muted))', fontSize: '0.9rem' }}>{sc.conclusion}</div>
+                        <div style={{ fontWeight: 'bold', color: 'white' }}>{sc.topic}</div>
+                        <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '0.9rem' }}>{sc.conclusion}</div>
                         <div style={{ fontSize: '0.75rem', marginTop: '0.5rem', opacity: 0.6 }}>{new Date(sc.date).toLocaleDateString()}</div>
                     </div>
                 ))}
-                {strategicConversations.length === 0 && <div style={{ color: 'hsl(var(--text-muted))', textAlign: 'center' }}>Sin conversaciones registradas.</div>}
+                {strategicConversations.length === 0 && <div style={{ color: 'rgba(255, 255, 255, 0.8)', textAlign: 'center' }}>Sin conversaciones registradas.</div>}
             </div>
         </div>
     );
 
     const renderPlaceholders = (title: string, desc: string) => (
         <div className="glass-panel" style={{ padding: '2rem', borderTop: `4px solid ${accentColor}`, opacity: 0.8 }}>
-            <h2 style={{ color: 'hsl(var(--text-main))', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h2 style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 {title}
             </h2>
-            <p style={{ color: 'hsl(var(--text-muted))', marginBottom: '1.5rem' }}>
+            <p style={{ color: 'rgba(255, 255, 255, 0.8)', marginBottom: '1.5rem' }}>
                 {desc}
             </p>
             <div style={{ padding: '2rem', textAlign: 'center', border: '1px dashed hsl(var(--border-glass))', borderRadius: '8px' }}>
@@ -176,20 +176,20 @@ export default function EmergentClient({
 
     const renderCapabilities = () => (
         <div className="glass-panel" style={{ padding: '2rem', borderTop: `4px solid ${accentColor}` }}>
-            <h2 style={{ color: 'hsl(var(--text-main))', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h2 style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 🧩 Inventario de Capacidades Distintivas
             </h2>
-            <p style={{ color: 'hsl(var(--text-muted))', marginBottom: '1.5rem' }}>
+            <p style={{ color: 'rgba(255, 255, 255, 0.8)', marginBottom: '1.5rem' }}>
                 ¿Qué hacemos mejor que nadie más? Activos y habilidades difíciles de replicar.
             </p>
 
             <form action={createDistinctiveCapability} style={{ marginBottom: '2rem', display: 'grid', gridTemplateColumns: '2fr 1fr 2fr auto', gap: '1rem', alignItems: 'flex-end' }}>
                 <div>
-                    <label style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>Capacidad</label>
+                    <label style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.8)' }}>Capacidad</label>
                     <input name="name" placeholder="Ej: Algoritmo de compresión..." style={{ width: '100%' }} required />
                 </div>
                 <div>
-                    <label style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>Nivel</label>
+                    <label style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.8)' }}>Nivel</label>
                     <select name="status" style={{ width: '100%', height: '42px', padding: '0 0.5rem' }}>
                         <option value="Developing">En Desarrollo</option>
                         <option value="Mature">Madura</option>
@@ -197,7 +197,7 @@ export default function EmergentClient({
                     </select>
                 </div>
                 <div>
-                    <label style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>Evidencia / Prueba</label>
+                    <label style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.8)' }}>Evidencia / Prueba</label>
                     <input name="evidence" placeholder="¿Por qué es distintiva?..." style={{ width: '100%' }} />
                 </div>
                 <button type="submit" className="btn-primary" style={{ background: accentColor, height: '42px' }}>Añadir</button>
@@ -219,8 +219,8 @@ export default function EmergentClient({
                             </span>
                             <button onClick={() => deleteDistinctiveCapability(cap.id)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', opacity: 0.5 }}>🗑️</button>
                         </div>
-                        <h4 style={{ margin: '0.8rem 0 0.5rem 0', color: 'hsl(var(--text-main))' }}>{cap.name}</h4>
-                        <p style={{ fontSize: '0.85rem', color: 'hsl(var(--text-muted))', margin: 0 }}>{cap.evidence || 'Sin evidencia registrada'}</p>
+                        <h4 style={{ margin: '0.8rem 0 0.5rem 0', color: 'white' }}>{cap.name}</h4>
+                        <p style={{ fontSize: '0.85rem', color: 'rgba(255, 255, 255, 0.8)', margin: 0 }}>{cap.evidence || 'Sin evidencia registrada'}</p>
                     </div>
                 ))}
             </div>
@@ -229,24 +229,24 @@ export default function EmergentClient({
 
     const renderMarketValue = () => (
         <div className="glass-panel" style={{ padding: '2rem', borderTop: `4px solid ${accentColor}` }}>
-            <h2 style={{ color: 'hsl(var(--text-main))', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h2 style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 💎 Indicadores de Valor Creado
             </h2>
-            <p style={{ color: 'hsl(var(--text-muted))', marginBottom: '1.5rem' }}>
+            <p style={{ color: 'rgba(255, 255, 255, 0.8)', marginBottom: '1.5rem' }}>
                 El choque con el mercado. ¿Estamos ganando tracción real?
             </p>
 
             <form action={createMarketValueMetric} style={{ marginBottom: '2rem', display: 'grid', gridTemplateColumns: '2fr 1fr 2fr auto', gap: '1rem', alignItems: 'flex-end' }}>
                 <div>
-                    <label style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>Métrica de Valor</label>
+                    <label style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.8)' }}>Métrica de Valor</label>
                     <input name="metricName" placeholder="Ej: NPS, Retención W1..." style={{ width: '100%' }} required />
                 </div>
                 <div>
-                    <label style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>Valor (%)</label>
+                    <label style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.8)' }}>Valor (%)</label>
                     <input name="value" type="number" step="0.1" placeholder="95.5" style={{ width: '100%' }} required />
                 </div>
                 <div>
-                    <label style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>Feedback Cualitativo</label>
+                    <label style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.8)' }}>Feedback Cualitativo</label>
                     <input name="marketFeedback" placeholder="Lo que dicen los clientes..." style={{ width: '100%' }} />
                 </div>
                 <button type="submit" className="btn-primary" style={{ background: accentColor, height: '42px' }}>Registrar</button>
@@ -257,11 +257,11 @@ export default function EmergentClient({
                     <div key={vm.id} style={{ display: 'flex', gap: '2rem', alignItems: 'center', padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '12px' }}>
                         <div style={{ textAlign: 'center', minWidth: '80px' }}>
                             <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: accentColor }}>{vm.value}%</div>
-                            <div style={{ fontSize: '0.7rem', color: 'hsl(var(--text-muted))' }}>VALOR</div>
+                            <div style={{ fontSize: '0.7rem', color: 'rgba(255, 255, 255, 0.8)' }}>VALOR</div>
                         </div>
                         <div style={{ flex: 1 }}>
                             <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{vm.metricName}</div>
-                            <div style={{ color: 'hsl(var(--text-muted))', fontStyle: 'italic' }}>"{vm.marketFeedback}"</div>
+                            <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontStyle: 'italic' }}>"{vm.marketFeedback}"</div>
                         </div>
                         <button onClick={() => deleteMarketValueMetric(vm.id)} className="btn-secondary" style={{ padding: '0.4rem' }}>Eliminar</button>
                     </div>
@@ -272,20 +272,20 @@ export default function EmergentClient({
 
     const renderMutations = () => (
         <div className="glass-panel" style={{ padding: '2rem', borderTop: `4px solid ${accentColor}` }}>
-            <h2 style={{ color: 'hsl(var(--text-main))', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <h2 style={{ color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 🧬 Detector de Mutaciones
             </h2>
-            <p style={{ color: 'hsl(var(--text-muted))', marginBottom: '1.5rem' }}>
+            <p style={{ color: 'rgba(255, 255, 255, 0.8)', marginBottom: '1.5rem' }}>
                 Resultados inesperados y anomalías. La fuente de la nueva estrategia.
             </p>
 
             <form action={createMutationLog} style={{ marginBottom: '2rem', display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
                 <div style={{ flex: 3 }}>
-                    <label style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>Observación Inesperada</label>
+                    <label style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.8)' }}>Observación Inesperada</label>
                     <input name="observation" placeholder="Ej: Usuarios usan el chat para soporte técnico, no para ventas..." style={{ width: '100%' }} required />
                 </div>
                 <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: '0.8rem', color: 'hsl(var(--text-muted))' }}>Tipo</label>
+                    <label style={{ fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.8)' }}>Tipo</label>
                     <select name="type" style={{ width: '100%', height: '42px', padding: '0 0.5rem' }}>
                         <option value="POSITIVE">Oportunidad (+)</option>
                         <option value="NEGATIVE">Amenaza (-)</option>
@@ -315,7 +315,7 @@ export default function EmergentClient({
     return (
         <div className={styles.container}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                <h1 className={styles.header} style={{
+                <h1 className={styles.header} data-testid="emergent-page-title" style={{
                     color: accentColor,
                     marginBottom: 0
                 }}>Estrategia Emergente</h1>
@@ -385,7 +385,7 @@ export default function EmergentClient({
                 </div>
 
                 <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
-                    <div style={{ flex: 1, fontSize: '0.95rem', color: 'hsl(var(--text-main))', lineHeight: '1.6' }}>
+                    <div style={{ flex: 1, fontSize: '0.95rem', color: '#1e293b', lineHeight: '1.6' }}>
                         {analysisResult.length > 0 ? (
                             <div style={{ display: 'grid', gap: '1rem' }}>
                                 {analysisResult.map((res, i) => (
@@ -400,18 +400,18 @@ export default function EmergentClient({
                                             <span style={{
                                                 fontSize: '0.7rem',
                                                 fontWeight: 'bold',
-                                                color: 'white',
+                                                color: '#fff',
                                                 background: res.type === 'KILL' ? '#ef4444' : res.type === 'DOUBLE_DOWN' ? '#22c55e' : '#f59e0b',
                                                 padding: '2px 6px',
                                                 borderRadius: '4px'
                                             }}>
                                                 {res.type}
                                             </span>
-                                            <span style={{ fontWeight: 'bold' }}>
+                                            <span style={{ fontWeight: 'bold', color: '#0f172a' }}>
                                                 {res.reasonCode === 'zombie' ? 'Proyecto Ineficiente' : res.reasonCode === 'resourceHog' ? 'Sobrecarga de Recursos' : 'Oportunidad de Crecimiento'}
                                             </span>
                                         </div>
-                                        <div style={{ fontSize: '0.9rem' }}>
+                                        <div style={{ fontSize: '0.9rem', color: '#334155' }}>
                                             {res.reasonCode === 'zombie' ? `${res.reasonParams.statement} tiene solo ${res.reasonParams.progress}% progreso tras el ${res.reasonParams.time}% del periodo.` :
                                                 res.reasonCode === 'resourceHog' ? `La línea "${res.reasonParams.statement}" tiene ${res.reasonParams.count} iniciativas activas pero muy bajo progreso real.` :
                                                     `La iniciativa "${res.reasonParams.title}" muestra un avance excepcional (>80%) en horizontes futuros.`}
@@ -420,7 +420,7 @@ export default function EmergentClient({
                                 ))}
                             </div>
                         ) : (
-                            <div style={{ color: 'hsl(var(--text-muted))' }}>
+                            <div style={{ color: '#475569' }}>
                                 <p><strong>Sugerencia Contextual:</strong></p>
                                 {activeTab === 'hardChoices' && "He notado que las renuncias están muy enfocadas en producto. ¿Has considerado renuncias en segmentos de clientes?"}
                                 {activeTab === 'coalition' && "La última conversación sobre precios no tuvo conclusión clara. Sugiero retomarla en el próximo ritual."}

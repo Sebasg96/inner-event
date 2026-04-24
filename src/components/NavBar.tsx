@@ -131,7 +131,7 @@ export default function NavBar() {
                     className={`${styles.mobileMenuBtn} ${isOpen ? styles.openIcon : ''}`}
                     onClick={toggleMenu}
                     aria-label="Toggle Menu"
-                    data-testid="nav-menu-toggle"
+                    data-testid="nav-toggle-menu-btn"
                 >
                     <div className={styles.hamburgerIcon} />
                 </button>
