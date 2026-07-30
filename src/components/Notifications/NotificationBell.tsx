@@ -133,6 +133,8 @@ export default function NotificationBell() {
                                         setIsOpen(false);
                                         if (notif.type === 'WEIGHT_REVIEW') {
                                             router.push('/strategy/planning?tab=WEIGHTS');
+                                        } else if (notif.type === 'DIAGNOSTIC_ASSIGNED') {
+                                            router.push('/diagnostics');
                                         } else {
                                             router.push(`/strategy/planning?openKrId=${notif.id}`);
                                         }
@@ -159,6 +161,10 @@ export default function NotificationBell() {
                                     {notif.type === 'WEIGHT_REVIEW' ? (
                                         <div style={{ fontSize: '0.65rem', color: '#f59e0b', fontWeight: 600, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                             <span>⚖️</span> Revisar Ponderación (0%)
+                                        </div>
+                                    ) : notif.type === 'DIAGNOSTIC_ASSIGNED' ? (
+                                        <div style={{ fontSize: '0.65rem', color: '#60a5fa', fontWeight: 600, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <span>📋</span> {notif.daysOverdue > 0 ? `Vence en ${notif.daysOverdue} día${notif.daysOverdue > 1 ? 's' : ''}` : 'Vence hoy'}
                                         </div>
                                     ) : (
                                         <div style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 500, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>

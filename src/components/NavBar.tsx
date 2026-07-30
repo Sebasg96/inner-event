@@ -37,6 +37,7 @@ export default function NavBar() {
         { href: '/reports', label: dict.nav.reports || 'Reports', color: '--module-reports', module: 'reports' },
         { href: '/emergent', label: dict.nav.emergent || 'Emergent', color: '--module-emergent', module: 'emergent' },
         { href: '/rituals', label: 'Rituales', color: '--accent', module: 'rituals' },
+        { href: '/diagnostics', label: 'Diagnóstico', color: '--secondary', module: 'diagnostics' },
         { href: '/admin/users', label: 'Admin', color: '--primary', module: 'admin' },
     ];
 

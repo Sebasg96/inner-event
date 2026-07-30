@@ -2,8 +2,8 @@
 
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
-import { Horizon, KanbanStatus, DiscColor, JobRole } from '@prisma/client';
-import { canEditStrategy, canManageUsers } from '@/lib/permissions';
+import { Horizon, KanbanStatus, DiscColor, JobRole, DiagnosticFrequency, QuestionType } from '@prisma/client';
+import { canEditStrategy, canManageUsers, canManageDiagnostics } from '@/lib/permissions';
 import { cookies } from 'next/headers';
 
 // --- Auth ---
@@ -1496,7 +1496,58 @@ export async function getUserNotifications() {
         type: 'COMMITMENT_OVERDUE'
     }));
 
-    return [...(notifications as any), ...ritualNotifs, ...commitmentNotifs];
+    // --- DIAGNOSTIC NOTIFICATIONS ---
+
+    const diagnosticAssignments = await prisma.diagnosticAssignment.findMany({
+        where: { userId: dbUser.id, campaign: { isActive: true } },
+        include: {
+            campaign: {
+                select: {
+                    name: true,
+                    frequency: true,
+                    questionsPerPeriod: true,
+                    startDate: true,
+                    endDate: true,
+                    questions: { select: { questionId: true }, orderBy: { order: 'asc' } },
+                }
+            },
+            responses: { select: { questionId: true } },
+        },
+    });
+
+    const diagnosticNotifs = diagnosticAssignments.flatMap(assignment => {
+        const { campaign, responses } = assignment;
+        const startDate = new Date(campaign.startDate);
+        if (now < startDate) return [];
+        if (campaign.endDate && now > new Date(campaign.endDate)) return [];
+
+        const diffDays = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+        const periodDays = campaign.frequency === 'DAILY' ? 1 : 7;
+        const period = Math.floor(diffDays / periodDays);
+
+        const allQuestionIds = campaign.questions.map(q => q.questionId);
+        const periodStart = period * campaign.questionsPerPeriod;
+        const periodQuestionIds = allQuestionIds.slice(periodStart, periodStart + campaign.questionsPerPeriod);
+        if (periodQuestionIds.length === 0) return [];
+
+        const answeredIds = new Set(responses.map(r => r.questionId));
+        const pendingCount = periodQuestionIds.filter(id => !answeredIds.has(id)).length;
+        if (pendingCount === 0) return [];
+
+        const deadline = new Date(startDate);
+        deadline.setDate(deadline.getDate() + (period + 1) * periodDays);
+        const daysLeft = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+        return [{
+            id: assignment.id,
+            title: campaign.name,
+            objectiveTitle: `${pendingCount} pregunta${pendingCount > 1 ? 's' : ''} pendiente${pendingCount > 1 ? 's' : ''} este período`,
+            daysOverdue: daysLeft,
+            type: 'DIAGNOSTIC_ASSIGNED'
+        }];
+    });
+
+    return [...(notifications as any), ...ritualNotifs, ...commitmentNotifs, ...diagnosticNotifs];
 }
 
 export async function updateKeyResultPeriodicity(keyResultId: string, periodicity: any) {
@@ -1986,5 +2037,213 @@ export async function deleteMutationLog(id: string) {
         where: { id }
     });
     revalidatePath('/emergent');
+}
+
+// ── Diagnostics ───────────────────────────────────────────────────────────────
+
+async function getDiagnosticsTenantId(): Promise<string> {
+    const cookieStore = await cookies();
+    const tenantId = cookieStore.get('inner_event_tenant_id')?.value;
+    if (!tenantId) throw new Error('Not authenticated');
+    return tenantId;
+}
+
+async function getDiagnosticsUserId(): Promise<string> {
+    const cookieStore = await cookies();
+    const userId = cookieStore.get('inner_event_user_id')?.value;
+    if (!userId) throw new Error('Not authenticated');
+    return userId;
+}
+
+// ── Question Bank ─────────────────────────────────────────────────────────────
+
+export async function getDiagnosticQuestions() {
+    const tenantId = await getDiagnosticsTenantId();
+    return prisma.diagnosticQuestion.findMany({
+        where: { tenantId },
+        orderBy: [{ templateSet: 'asc' }, { category: 'asc' }, { createdAt: 'asc' }],
+    });
+}
+
+export async function createDiagnosticQuestion(formData: FormData) {
+    const tenantId = await getDiagnosticsTenantId();
+    const text = formData.get('text') as string;
+    const type = (formData.get('type') as QuestionType) ?? 'TEXT';
+    const category = (formData.get('category') as string) || null;
+    const templateSet = (formData.get('templateSet') as string) || null;
+    const options = (formData.get('options') as string) || null;
+
+    await prisma.diagnosticQuestion.create({
+        data: { text, type, category, templateSet, options, tenantId },
+    });
+    revalidatePath('/diagnostics/admin');
+}
+
+export async function updateDiagnosticQuestion(questionId: string, formData: FormData) {
+    const tenantId = await getDiagnosticsTenantId();
+    const text = formData.get('text') as string;
+    const type = formData.get('type') as QuestionType;
+    const category = (formData.get('category') as string) || null;
+    const templateSet = (formData.get('templateSet') as string) || null;
+    const options = (formData.get('options') as string) || null;
+
+    await prisma.diagnosticQuestion.updateMany({
+        where: { id: questionId, tenantId },
+        data: { text, type, category, templateSet, options },
+    });
+    revalidatePath('/diagnostics/admin');
+}
+
+export async function deleteDiagnosticQuestion(questionId: string) {
+    const tenantId = await getDiagnosticsTenantId();
+    await prisma.diagnosticQuestion.deleteMany({ where: { id: questionId, tenantId } });
+    revalidatePath('/diagnostics/admin');
+}
+
+// ── Campaigns ─────────────────────────────────────────────────────────────────
+
+export async function getDiagnosticCampaigns() {
+    const tenantId = await getDiagnosticsTenantId();
+    return prisma.diagnosticCampaign.findMany({
+        where: { tenantId },
+        orderBy: { createdAt: 'desc' },
+        include: {
+            questions: { include: { question: true }, orderBy: { order: 'asc' } },
+            assignments: { include: { user: true, responses: true } },
+        },
+    });
+}
+
+export async function getDiagnosticCampaign(campaignId: string) {
+    const tenantId = await getDiagnosticsTenantId();
+    return prisma.diagnosticCampaign.findFirst({
+        where: { id: campaignId, tenantId },
+        include: {
+            questions: { include: { question: true }, orderBy: { order: 'asc' } },
+            assignments: {
+                include: {
+                    user: { select: { id: true, name: true, email: true, jobTitle: true, area: true } },
+                    responses: { include: { question: true } },
+                },
+            },
+        },
+    });
+}
+
+export async function createDiagnosticCampaign(formData: FormData) {
+    const tenantId = await getDiagnosticsTenantId();
+    const name = formData.get('name') as string;
+    const description = (formData.get('description') as string) || null;
+    const frequency = (formData.get('frequency') as DiagnosticFrequency) ?? 'WEEKLY';
+    const questionsPerPeriod = parseInt(formData.get('questionsPerPeriod') as string) || 5;
+    const startDate = new Date(formData.get('startDate') as string);
+    const endDateRaw = formData.get('endDate') as string;
+    const endDate = endDateRaw ? new Date(endDateRaw) : null;
+
+    await prisma.diagnosticCampaign.create({
+        data: { name, description, frequency, questionsPerPeriod, startDate, endDate, tenantId },
+    });
+    revalidatePath('/diagnostics/admin');
+}
+
+export async function updateDiagnosticCampaign(campaignId: string, formData: FormData) {
+    const tenantId = await getDiagnosticsTenantId();
+    const name = formData.get('name') as string;
+    const description = (formData.get('description') as string) || null;
+    const frequency = formData.get('frequency') as DiagnosticFrequency;
+    const questionsPerPeriod = parseInt(formData.get('questionsPerPeriod') as string) || 5;
+    const startDate = new Date(formData.get('startDate') as string);
+    const endDateRaw = formData.get('endDate') as string;
+    const endDate = endDateRaw ? new Date(endDateRaw) : null;
+    const isActive = formData.get('isActive') === 'true';
+
+    await prisma.diagnosticCampaign.updateMany({
+        where: { id: campaignId, tenantId },
+        data: { name, description, frequency, questionsPerPeriod, startDate, endDate, isActive },
+    });
+    revalidatePath('/diagnostics/admin');
+}
+
+export async function deleteDiagnosticCampaign(campaignId: string) {
+    const tenantId = await getDiagnosticsTenantId();
+    await prisma.diagnosticCampaign.deleteMany({ where: { id: campaignId, tenantId } });
+    revalidatePath('/diagnostics/admin');
+}
+
+// ── Campaign ↔ Question links ─────────────────────────────────────────────────
+
+export async function addQuestionToCampaign(campaignId: string, questionId: string, order: number) {
+    await prisma.diagnosticCampaignQuestion.upsert({
+        where: { campaignId_questionId: { campaignId, questionId } },
+        create: { campaignId, questionId, order },
+        update: { order },
+    });
+    revalidatePath('/diagnostics/admin');
+}
+
+export async function removeQuestionFromCampaign(campaignId: string, questionId: string) {
+    await prisma.diagnosticCampaignQuestion.deleteMany({ where: { campaignId, questionId } });
+    revalidatePath('/diagnostics/admin');
+}
+
+export async function reorderCampaignQuestions(campaignId: string, orderedQuestionIds: string[]) {
+    await Promise.all(
+        orderedQuestionIds.map((questionId, index) =>
+            prisma.diagnosticCampaignQuestion.updateMany({
+                where: { campaignId, questionId },
+                data: { order: index },
+            })
+        )
+    );
+    revalidatePath('/diagnostics/admin');
+}
+
+// ── Assignments ───────────────────────────────────────────────────────────────
+
+export async function assignUsersToCampaign(campaignId: string, userIds: string[]) {
+    const tenantId = await getDiagnosticsTenantId();
+    await Promise.all(
+        userIds.map((userId) =>
+            prisma.diagnosticAssignment.upsert({
+                where: { campaignId_userId: { campaignId, userId } },
+                create: { campaignId, userId, tenantId },
+                update: {},
+            })
+        )
+    );
+    revalidatePath('/diagnostics/admin');
+}
+
+export async function removeUserFromCampaign(campaignId: string, userId: string) {
+    await prisma.diagnosticAssignment.deleteMany({ where: { campaignId, userId } });
+    revalidatePath('/diagnostics/admin');
+}
+
+// ── User-facing ───────────────────────────────────────────────────────────────
+
+export async function getUserDiagnosticAssignments() {
+    const userId = await getDiagnosticsUserId();
+    const tenantId = await getDiagnosticsTenantId();
+    return prisma.diagnosticAssignment.findMany({
+        where: { userId, tenantId, campaign: { isActive: true } },
+        include: {
+            campaign: {
+                include: {
+                    questions: { include: { question: true }, orderBy: { order: 'asc' } },
+                },
+            },
+            responses: true,
+        },
+    });
+}
+
+export async function submitDiagnosticResponse(assignmentId: string, questionId: string, answer: string) {
+    const tenantId = await getDiagnosticsTenantId();
+    await prisma.diagnosticResponse.upsert({
+        where: { assignmentId_questionId: { assignmentId, questionId } },
+        create: { assignmentId, questionId, answer, tenantId },
+        update: { answer },
+    });
+    revalidatePath('/diagnostics');
 }
 

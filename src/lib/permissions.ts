@@ -39,12 +39,17 @@ export function canUpdateKR(role: string | undefined | null): boolean {
     return hasMinRole(role, 'COLLABORATOR');
 }
 
+/** Can manage diagnostic campaigns (create/edit/assign) — ADMIN+ */
+export function canManageDiagnostics(role: string | undefined | null): boolean {
+    return hasMinRole(role, 'ADMIN');
+}
+
 /** Modules accessible by each role */
 const MODULE_ACCESS: Record<AppRole, string[]> = {
-    SUPERADMIN: ['dashboard', 'strategy', 'capacities', 'analytics', 'reports', 'emergent', 'rituals', 'admin'],
-    ADMIN: ['dashboard', 'strategy', 'capacities', 'analytics', 'reports', 'emergent', 'rituals', 'admin'],
-    DIRECTOR: ['dashboard', 'strategy', 'capacities', 'analytics', 'reports', 'emergent', 'rituals'],
-    COLLABORATOR: ['dashboard', 'strategy'],
+    SUPERADMIN: ['dashboard', 'strategy', 'capacities', 'analytics', 'reports', 'emergent', 'rituals', 'admin', 'diagnostics'],
+    ADMIN: ['dashboard', 'strategy', 'capacities', 'analytics', 'reports', 'emergent', 'rituals', 'admin', 'diagnostics'],
+    DIRECTOR: ['dashboard', 'strategy', 'capacities', 'analytics', 'reports', 'emergent', 'rituals', 'diagnostics'],
+    COLLABORATOR: ['dashboard', 'strategy', 'diagnostics'],
 };
 
 /** Check if a role can access a given module */
@@ -71,5 +76,6 @@ export function pathToModule(path: string): string | null {
     if (path.startsWith('/emergent')) return 'emergent';
     if (path.startsWith('/rituals')) return 'rituals';
     if (path.startsWith('/admin')) return 'admin';
+    if (path.startsWith('/diagnostics')) return 'diagnostics';
     return null;
 }

@@ -7,7 +7,7 @@ import styles from '@/app/strategy/page.module.css';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { useAuth } from '@/lib/auth/AuthContext';
 import { useRouter } from 'next/navigation';
-import { Target, Users, BarChart3, FileText, Zap, Calendar, LayoutDashboard, ArrowRight } from 'lucide-react';
+import { Target, Users, BarChart3, FileText, Zap, Calendar, LayoutDashboard, ArrowRight, ClipboardList } from 'lucide-react';
 
 interface HomePageClientProps {
     purpose: any;
@@ -74,6 +74,13 @@ export default function HomePageClient({ purpose }: HomePageClientProps) {
             icon: LayoutDashboard,
             description: 'Monitorea el cumplimiento de tus metas (KRs) y avance de las Megas.',
             color: 'hsl(var(--secondary))'
+        },
+        {
+            title: 'Diagnóstico',
+            href: '/diagnostics',
+            icon: ClipboardList,
+            description: 'Cuestionarios periódicos para el diagnóstico organizacional de tu empresa.',
+            color: 'hsl(220 70% 60%)'
         }
     ];
 

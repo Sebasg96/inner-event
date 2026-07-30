@@ -49,6 +49,10 @@ model Tenant {
   teams                   Team[]
   users                   User[]
   Document                Document[]
+  diagnosticQuestions     DiagnosticQuestion[]
+  diagnosticCampaigns     DiagnosticCampaign[]
+  diagnosticAssignments   DiagnosticAssignment[]
+  diagnosticResponses     DiagnosticResponse[]
 }
 
 model User {
@@ -81,6 +85,7 @@ model User {
   ledTeams             Team[]              @relation("TeamLeader")
   teams                TeamMember[]
   tenant               Tenant              @relation(fields: [tenantId], references: [id])
+  diagnosticAssignments DiagnosticAssignment[]
 }
 
 model DiscProfile {
@@ -490,4 +495,90 @@ enum MeasurementDirection {
   MINIMIZE
   TARGET
   COMPLETE
+}
+
+// ── Diagnostics ──────────────────────────────────────────────────────────────
+
+model DiagnosticQuestion {
+  id          String                     @id @default(uuid())
+  text        String
+  type        QuestionType               @default(TEXT)
+  category    String?
+  templateSet String?
+  options     String?
+  tenantId    String
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+  tenant      Tenant                     @relation(fields: [tenantId], references: [id])
+  campaigns   DiagnosticCampaignQuestion[]
+  responses   DiagnosticResponse[]
+}
+
+model DiagnosticCampaign {
+  id                 String                     @id @default(uuid())
+  name               String
+  description        String?
+  frequency          DiagnosticFrequency        @default(WEEKLY)
+  questionsPerPeriod Int                        @default(5)
+  startDate          DateTime
+  endDate            DateTime?
+  isActive           Boolean                    @default(true)
+  tenantId           String
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  tenant             Tenant                     @relation(fields: [tenantId], references: [id])
+  questions          DiagnosticCampaignQuestion[]
+  assignments        DiagnosticAssignment[]
+}
+
+model DiagnosticCampaignQuestion {
+  id         String             @id @default(uuid())
+  campaignId String
+  questionId String
+  order      Int                @default(0)
+  campaign   DiagnosticCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  question   DiagnosticQuestion @relation(fields: [questionId], references: [id])
+
+  @@unique([campaignId, questionId])
+}
+
+model DiagnosticAssignment {
+  id         String             @id @default(uuid())
+  campaignId String
+  userId     String
+  tenantId   String
+  createdAt  DateTime           @default(now())
+  campaign   DiagnosticCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user       User               @relation(fields: [userId], references: [id])
+  tenant     Tenant             @relation(fields: [tenantId], references: [id])
+  responses  DiagnosticResponse[]
+
+  @@unique([campaignId, userId])
+}
+
+model DiagnosticResponse {
+  id           String               @id @default(uuid())
+  assignmentId String
+  questionId   String
+  answer       String
+  tenantId     String
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  assignment   DiagnosticAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  question     DiagnosticQuestion   @relation(fields: [questionId], references: [id])
+  tenant       Tenant               @relation(fields: [tenantId], references: [id])
+
+  @@unique([assignmentId, questionId])
+}
+
+enum DiagnosticFrequency {
+  DAILY
+  WEEKLY
+}
+
+enum QuestionType {
+  TEXT
+  YES_NO
+  RATING
+  MULTIPLE_CHOICE
 }
