@@ -163,8 +163,8 @@ export default function NotificationBell() {
                                             <span>⚖️</span> Revisar Ponderación (0%)
                                         </div>
                                     ) : notif.type === 'DIAGNOSTIC_ASSIGNED' ? (
-                                        <div style={{ fontSize: '0.65rem', color: '#60a5fa', fontWeight: 600, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                            <span>📋</span> {notif.daysOverdue > 0 ? `Vence en ${notif.daysOverdue} día${notif.daysOverdue > 1 ? 's' : ''}` : 'Vence hoy'}
+                                        <div style={{ fontSize: '0.65rem', color: notif.daysOverdue < 0 ? '#f87171' : '#60a5fa', fontWeight: 600, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                            <span>📋</span> {notif.daysOverdue > 0 ? `Vence en ${notif.daysOverdue} día${notif.daysOverdue > 1 ? 's' : ''}` : notif.daysOverdue === 0 ? 'Vence hoy' : `Vencido hace ${Math.abs(notif.daysOverdue)} día${Math.abs(notif.daysOverdue) !== 1 ? 's' : ''}`}
                                         </div>
                                     ) : (
                                         <div style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 500, marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>

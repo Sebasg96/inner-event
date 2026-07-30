@@ -2173,6 +2173,12 @@ export async function deleteDiagnosticCampaign(campaignId: string) {
 // ── Campaign ↔ Question links ─────────────────────────────────────────────────
 
 export async function addQuestionToCampaign(campaignId: string, questionId: string, order: number) {
+    const tenantId = await getDiagnosticsTenantId();
+    const [campaign, question] = await Promise.all([
+        prisma.diagnosticCampaign.findFirst({ where: { id: campaignId, tenantId } }),
+        prisma.diagnosticQuestion.findFirst({ where: { id: questionId, tenantId } }),
+    ]);
+    if (!campaign || !question) throw new Error('Not found');
     await prisma.diagnosticCampaignQuestion.upsert({
         where: { campaignId_questionId: { campaignId, questionId } },
         create: { campaignId, questionId, order },
@@ -2182,11 +2188,17 @@ export async function addQuestionToCampaign(campaignId: string, questionId: stri
 }
 
 export async function removeQuestionFromCampaign(campaignId: string, questionId: string) {
+    const tenantId = await getDiagnosticsTenantId();
+    const campaign = await prisma.diagnosticCampaign.findFirst({ where: { id: campaignId, tenantId } });
+    if (!campaign) throw new Error('Not found');
     await prisma.diagnosticCampaignQuestion.deleteMany({ where: { campaignId, questionId } });
     revalidatePath('/diagnostics/admin');
 }
 
 export async function reorderCampaignQuestions(campaignId: string, orderedQuestionIds: string[]) {
+    const tenantId = await getDiagnosticsTenantId();
+    const campaign = await prisma.diagnosticCampaign.findFirst({ where: { id: campaignId, tenantId } });
+    if (!campaign) throw new Error('Not found');
     await Promise.all(
         orderedQuestionIds.map((questionId, index) =>
             prisma.diagnosticCampaignQuestion.updateMany({
@@ -2215,7 +2227,8 @@ export async function assignUsersToCampaign(campaignId: string, userIds: string[
 }
 
 export async function removeUserFromCampaign(campaignId: string, userId: string) {
-    await prisma.diagnosticAssignment.deleteMany({ where: { campaignId, userId } });
+    const tenantId = await getDiagnosticsTenantId();
+    await prisma.diagnosticAssignment.deleteMany({ where: { campaignId, userId, tenantId } });
     revalidatePath('/diagnostics/admin');
 }
 
@@ -2239,6 +2252,11 @@ export async function getUserDiagnosticAssignments() {
 
 export async function submitDiagnosticResponse(assignmentId: string, questionId: string, answer: string) {
     const tenantId = await getDiagnosticsTenantId();
+    const userId = await getDiagnosticsUserId();
+    const assignment = await prisma.diagnosticAssignment.findFirst({
+        where: { id: assignmentId, userId, tenantId },
+    });
+    if (!assignment) throw new Error('Assignment not found');
     await prisma.diagnosticResponse.upsert({
         where: { assignmentId_questionId: { assignmentId, questionId } },
         create: { assignmentId, questionId, answer, tenantId },

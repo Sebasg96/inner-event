@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import NavBar from '@/components/NavBar';
 import {
     createDiagnosticCampaign,
@@ -81,6 +82,8 @@ function completionPct(assignment: Assignment, totalQuestions: number) {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function DiagnosticsAdminClient({ initialCampaigns, initialQuestions, tenantUsers }: Props) {
+    const router = useRouter();
+
     const [tab, setTab] = useState<'campaigns' | 'questions'>('campaigns');
     const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
     const [campaignTab, setCampaignTab] = useState<'questions' | 'users' | 'responses'>('questions');
@@ -97,6 +100,19 @@ export default function DiagnosticsAdminClient({ initialCampaigns, initialQuesti
     const [campaigns, setCampaigns] = useState(initialCampaigns);
     const [questions, setQuestions] = useState(initialQuestions);
 
+    // Sync state when server data refreshes after router.refresh()
+    useEffect(() => {
+        setCampaigns(initialCampaigns);
+        setSelectedCampaign(prev => {
+            if (!prev) return null;
+            return initialCampaigns.find(c => c.id === prev.id) ?? null;
+        });
+    }, [initialCampaigns]);
+
+    useEffect(() => {
+        setQuestions(initialQuestions);
+    }, [initialQuestions]);
+
     // ── Campaign CRUD ──
 
     async function handleCreateCampaign(e: React.FormEvent<HTMLFormElement>) {
@@ -104,7 +120,10 @@ export default function DiagnosticsAdminClient({ initialCampaigns, initialQuesti
         setCampaignLoading(true);
         try {
             await createDiagnosticCampaign(new FormData(e.currentTarget));
-            window.location.reload();
+            setShowCreateCampaign(false);
+            router.refresh();
+        } catch {
+            alert('Error al crear la campaña. Intenta de nuevo.');
         } finally {
             setCampaignLoading(false);
         }
@@ -112,9 +131,13 @@ export default function DiagnosticsAdminClient({ initialCampaigns, initialQuesti
 
     async function handleDeleteCampaign(id: string) {
         if (!confirm('¿Eliminar esta campaña? Se borrarán todas las asignaciones y respuestas.')) return;
-        await deleteDiagnosticCampaign(id);
-        setCampaigns(campaigns.filter(c => c.id !== id));
-        if (selectedCampaign?.id === id) setSelectedCampaign(null);
+        try {
+            await deleteDiagnosticCampaign(id);
+            setCampaigns(campaigns.filter(c => c.id !== id));
+            if (selectedCampaign?.id === id) setSelectedCampaign(null);
+        } catch {
+            alert('Error al eliminar la campaña. Intenta de nuevo.');
+        }
     }
 
     async function handleToggleActive(campaign: Campaign) {
@@ -126,9 +149,13 @@ export default function DiagnosticsAdminClient({ initialCampaigns, initialQuesti
         fd.set('startDate', new Date(campaign.startDate).toISOString().split('T')[0]);
         if (campaign.endDate) fd.set('endDate', new Date(campaign.endDate).toISOString().split('T')[0]);
         fd.set('isActive', String(!campaign.isActive));
-        await updateDiagnosticCampaign(campaign.id, fd);
-        setCampaigns(campaigns.map(c => c.id === campaign.id ? { ...c, isActive: !c.isActive } : c));
-        if (selectedCampaign?.id === campaign.id) setSelectedCampaign(prev => prev ? { ...prev, isActive: !prev.isActive } : null);
+        try {
+            await updateDiagnosticCampaign(campaign.id, fd);
+            setCampaigns(campaigns.map(c => c.id === campaign.id ? { ...c, isActive: !c.isActive } : c));
+            if (selectedCampaign?.id === campaign.id) setSelectedCampaign(prev => prev ? { ...prev, isActive: !prev.isActive } : null);
+        } catch {
+            alert('Error al actualizar la campaña. Intenta de nuevo.');
+        }
     }
 
     // ── Question CRUD ──
@@ -138,7 +165,10 @@ export default function DiagnosticsAdminClient({ initialCampaigns, initialQuesti
         setQuestionLoading(true);
         try {
             await createDiagnosticQuestion(new FormData(e.currentTarget));
-            window.location.reload();
+            setShowCreateQuestion(false);
+            router.refresh();
+        } catch {
+            alert('Error al guardar la pregunta. Intenta de nuevo.');
         } finally {
             setQuestionLoading(false);
         }
@@ -150,7 +180,9 @@ export default function DiagnosticsAdminClient({ initialCampaigns, initialQuesti
         try {
             await updateDiagnosticQuestion(questionId, new FormData(e.currentTarget));
             setEditingQuestionId(null);
-            window.location.reload();
+            router.refresh();
+        } catch {
+            alert('Error al actualizar la pregunta. Intenta de nuevo.');
         } finally {
             setQuestionLoading(false);
         }
@@ -158,8 +190,12 @@ export default function DiagnosticsAdminClient({ initialCampaigns, initialQuesti
 
     async function handleDeleteQuestion(id: string) {
         if (!confirm('¿Eliminar esta pregunta?')) return;
-        await deleteDiagnosticQuestion(id);
-        setQuestions(questions.filter(q => q.id !== id));
+        try {
+            await deleteDiagnosticQuestion(id);
+            setQuestions(questions.filter(q => q.id !== id));
+        } catch {
+            alert('Error al eliminar la pregunta. Intenta de nuevo.');
+        }
     }
 
     // ── Campaign ↔ Question ──
@@ -167,14 +203,22 @@ export default function DiagnosticsAdminClient({ initialCampaigns, initialQuesti
     async function handleAddQuestion(questionId: string) {
         if (!selectedCampaign) return;
         const order = selectedCampaign.questions.length;
-        await addQuestionToCampaign(selectedCampaign.id, questionId, order);
-        window.location.reload();
+        try {
+            await addQuestionToCampaign(selectedCampaign.id, questionId, order);
+            router.refresh();
+        } catch {
+            alert('Error al añadir la pregunta. Intenta de nuevo.');
+        }
     }
 
     async function handleRemoveQuestion(questionId: string) {
         if (!selectedCampaign) return;
-        await removeQuestionFromCampaign(selectedCampaign.id, questionId);
-        window.location.reload();
+        try {
+            await removeQuestionFromCampaign(selectedCampaign.id, questionId);
+            router.refresh();
+        } catch {
+            alert('Error al quitar la pregunta. Intenta de nuevo.');
+        }
     }
 
     async function handleMoveQuestion(index: number, direction: 'up' | 'down') {
@@ -183,30 +227,42 @@ export default function DiagnosticsAdminClient({ initialCampaigns, initialQuesti
         const swapIndex = direction === 'up' ? index - 1 : index + 1;
         if (swapIndex < 0 || swapIndex >= qs.length) return;
 
-        // Swap in local state immediately
+        // Optimistic local swap
         [qs[index], qs[swapIndex]] = [qs[swapIndex], qs[index]];
         setSelectedCampaign({ ...selectedCampaign, questions: qs });
 
-        // Persist new order
-        await reorderCampaignQuestions(
-            selectedCampaign.id,
-            qs.map(cq => cq.question.id)
-        );
+        try {
+            await reorderCampaignQuestions(
+                selectedCampaign.id,
+                qs.map(cq => cq.question.id)
+            );
+        } catch {
+            // Rollback on error
+            router.refresh();
+        }
     }
 
     // ── Assignments ──
 
     async function handleAssignUser(userId: string) {
         if (!selectedCampaign) return;
-        await assignUsersToCampaign(selectedCampaign.id, [userId]);
-        window.location.reload();
+        try {
+            await assignUsersToCampaign(selectedCampaign.id, [userId]);
+            router.refresh();
+        } catch {
+            alert('Error al asignar el usuario. Intenta de nuevo.');
+        }
     }
 
     async function handleRemoveUser(userId: string) {
         if (!selectedCampaign) return;
         if (!confirm('¿Retirar este usuario de la campaña?')) return;
-        await removeUserFromCampaign(selectedCampaign.id, userId);
-        window.location.reload();
+        try {
+            await removeUserFromCampaign(selectedCampaign.id, userId);
+            router.refresh();
+        } catch {
+            alert('Error al retirar el usuario. Intenta de nuevo.');
+        }
     }
 
     const assignedUserIds = new Set(selectedCampaign?.assignments.map(a => a.userId) ?? []);
