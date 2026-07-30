@@ -35,7 +35,7 @@ interface Assignment {
     id: string;
     userId: string;
     user: { id: string; name: string; email: string; jobTitle: string | null; area: string | null };
-    responses: { id: string; questionId: string }[];
+    responses: { id: string; questionId: string; answer: string }[];
 }
 
 interface Campaign {
